@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=DM+Sans:wght@400;500;600&display=swap');
+
+:root {
+  --green: #2D5016;
+  --green-light: #4A7A2E;
+  --terracotta: #C4704B;
+  --terracotta-light: #D4916E;
+  --honey: #D4A843;
+  --linen: #FAF8F5;
+  --linen-warm: #F5F0EA;
+  --charcoal: #2C2C2C;
+  --stone: #6B6560;
+  --border: #E8E4DF;
+  --border-light: #F0ECE7;
+  --white: #FFFFFF;
+  --danger: #B83A2A;
+  --danger-bg: #FDF2F0;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--charcoal);
+  background: var(--linen);
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--charcoal);
+  line-height: 1.2;
+}
+
+a {
+  color: var(--green);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--green-light);
+}
+
+input, textarea, select, button {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
