@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { recipes, UNITS, type Recipe, type RecipeIngredient } from '../services/api';
 
 interface IngredientFormProps {
@@ -23,16 +23,16 @@ function IngredientForm({ initial, submitLabel, onSubmit, onCancel }: Ingredient
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flex: 1 }}>
-      <div className="form-group" style={{ flex: 2 }}>
+    <form onSubmit={handleSubmit} className="inline-form">
+      <div className="form-group inline-form-field-lg">
         <label>Ingredient</label>
         <input className="form-input" placeholder="e.g. Spaghetti" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
       </div>
-      <div className="form-group" style={{ flex: 1 }}>
+      <div className="form-group inline-form-field-sm">
         <label>Qty</label>
         <input className="form-input" type="number" min="0" placeholder="200" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
       </div>
-      <div className="form-group" style={{ flex: 1 }}>
+      <div className="form-group inline-form-field-sm">
         <label>Unit</label>
         <select className="form-input" value={unit} onChange={(e) => setUnit(e.target.value)}>
           <option value="">None</option>
@@ -41,8 +41,10 @@ function IngredientForm({ initial, submitLabel, onSubmit, onCancel }: Ingredient
           ))}
         </select>
       </div>
-      <button type="submit" className="btn btn-primary">{submitLabel}</button>
-      <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+      <div className="inline-form-actions">
+        <button type="submit" className="btn btn-primary btn-sm">{submitLabel}</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
     </form>
   );
 }
@@ -109,7 +111,9 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
             onCancel={() => setAdding(false)}
           />
         ) : (
-          <button className="btn btn-secondary btn-sm" onClick={() => setAdding(true)}>Add ingredient</button>
+          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
+            <span className="add-row-icon">+</span> Add ingredient
+          </button>
         )}
       </div>
     </div>
@@ -132,13 +136,15 @@ function StepForm({ initial, submitLabel, onSubmit, onCancel }: StepFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flex: 1 }}>
-      <div className="form-group" style={{ flex: 1 }}>
+    <form onSubmit={handleSubmit} className="inline-form">
+      <div className="form-group inline-form-field-lg">
         <label>Step</label>
         <input className="form-input" placeholder="Describe this step..." value={text} onChange={(e) => setText(e.target.value)} required autoFocus />
       </div>
-      <button type="submit" className="btn btn-primary">{submitLabel}</button>
-      <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+      <div className="inline-form-actions">
+        <button type="submit" className="btn btn-primary btn-sm">{submitLabel}</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
     </form>
   );
 }
@@ -203,7 +209,9 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
             onCancel={() => setAdding(false)}
           />
         ) : (
-          <button className="btn btn-secondary btn-sm" onClick={() => setAdding(true)}>Add step</button>
+          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
+            <span className="add-row-icon">+</span> Add step
+          </button>
         )}
       </div>
     </div>
@@ -217,9 +225,17 @@ export default function Recipes() {
   const [newSteps, setNewSteps] = useState<string[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     recipes.list().then(setList).catch(() => setError('Failed to load recipes'));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
   }, []);
 
   const updateRecipe = (id: number, patch: Partial<Recipe>) => {
@@ -227,12 +243,15 @@ export default function Recipes() {
     recipes.update(id, patch).catch(() => setError('Failed to save changes'));
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      setError('Please enter a recipe name');
+      return;
+    }
     setError('');
     try {
       const recipe = await recipes.create({
-        name,
+        name: name.trim(),
         ingredients: newIngredients,
         instructions: newSteps,
       });
@@ -240,6 +259,13 @@ export default function Recipes() {
       setName('');
       setNewIngredients([]);
       setNewSteps([]);
+      setExpandedId(recipe.id);
+      setSuccess('Recipe saved');
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => {
+        document.getElementById(`recipe-${recipe.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
     } catch {
       setError('Failed to create recipe');
     }
@@ -264,23 +290,48 @@ export default function Recipes() {
       </div>
 
       {error && <div className="error-msg">{error}</div>}
+      {success && <div className="info-msg">{success}</div>}
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div className="form-group">
-            <label>Recipe name</label>
-            <input className="form-input" placeholder="e.g. Pasta Carbonara" value={name} onChange={(e) => setName(e.target.value)} required />
+      <div className="card create-card" style={{ marginBottom: '1.5rem' }}>
+        <div className="create-card-header">
+          <h2>New recipe</h2>
+          <span className="create-card-sub">Add the name first, then build up ingredients and steps before saving.</span>
+        </div>
+        <div className="form-group">
+          <label>Recipe name</label>
+          <input
+            className="form-input"
+            placeholder="e.g. Pasta Carbonara"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCreate();
+              }
+            }}
+          />
+        </div>
+        <div className="recipe-section">
+          <div className="recipe-section-title">
+            Ingredients
+            {newIngredients.length > 0 && <span className="section-count">{newIngredients.length}</span>}
           </div>
-          <div className="recipe-section">
-            <div className="recipe-section-title">Ingredients</div>
-            <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
+          <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
+        </div>
+        <div className="recipe-section">
+          <div className="recipe-section-title">
+            Procedure
+            {newSteps.length > 0 && <span className="section-count">{newSteps.length}</span>}
           </div>
-          <div className="recipe-section">
-            <div className="recipe-section-title">Procedure</div>
-            <StepEditor steps={newSteps} onChange={setNewSteps} />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Add recipe</button>
-        </form>
+          <StepEditor steps={newSteps} onChange={setNewSteps} />
+        </div>
+        <div className="create-actions">
+          <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={!name.trim()}>
+            Add recipe
+          </button>
+          <span className="hint">Recipe name is required; ingredients and steps are optional.</span>
+        </div>
       </div>
 
       <div className="card-grid">
@@ -295,7 +346,7 @@ export default function Recipes() {
           const ingCount = (recipe.ingredients || []).length;
           const stepCount = (recipe.instructions || []).length;
           return (
-            <div key={recipe.id} className="card">
+            <div key={recipe.id} id={`recipe-${recipe.id}`} className="card">
               <div className="recipe-header">
                 <button
                   type="button"
