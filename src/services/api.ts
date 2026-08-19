@@ -105,17 +105,23 @@ function isAuthenticated(): boolean {
 }
 
 // Recipes
+export interface RecipeIngredient {
+  name: string;
+  quantity?: number;
+  unit?: string;
+}
+
 export interface Recipe {
   id: number;
   name: string;
-  ingredients: string[];
-  instructions?: string;
+  ingredients: RecipeIngredient[];
+  instructions: string[];
 }
 
 export const recipes = {
   list: () => request<Recipe[]>('/api/v1/recipes'),
   get: (id: number) => request<Recipe>(`/api/v1/recipes/${id}`),
-  create: (data: { name: string; ingredients: string[]; instructions?: string }) =>
+  create: (data: { name: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
     request<Recipe>('/api/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe: data }) }),
   update: (id: number, data: Partial<Recipe>) =>
     request<Recipe>(`/api/v1/recipes/${id}`, { method: 'PATCH', body: JSON.stringify({ recipe: data }) }),

@@ -288,6 +288,91 @@ textarea.form-input {
   opacity: 1;
 }
 
+/* ── Recipe accordion ─────────────────────────── */
+.recipe-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.accordion-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: var(--green);
+  display: inline-flex;
+}
+
+.accordion-arrow {
+  display: inline-block;
+  transition: transform 0.22s ease;
+}
+
+.accordion-arrow.open {
+  transform: rotate(90deg);
+}
+
+.recipe-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-name {
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.recipe-meta {
+  font-size: 0.8rem;
+  color: var(--stone);
+  font-family: var(--font-mono);
+}
+
+.recipe-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.22s ease, opacity 0.22s ease;
+}
+
+.recipe-body > div {
+  overflow: hidden;
+}
+
+.recipe-body.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.recipe-section {
+  margin-top: 1rem;
+}
+
+.recipe-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  margin-bottom: 0.5rem;
+}
+
+.step-number {
+  color: var(--stone);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  width: 1.5rem;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.empty-inline {
+  color: var(--stone);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
 /* ── Checkboxes ──────────────────────────────── */
 .checkbox-label {
   display: flex;
