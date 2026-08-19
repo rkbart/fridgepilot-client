@@ -218,12 +218,101 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
   );
 }
 
-export default function Recipes() {
-  const [list, setList] = useState<Recipe[]>([]);
+interface RecipeCreateModalProps {
+  onClose: () => void;
+  onCreated: (recipe: Recipe) => void;
+}
+
+function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
   const [name, setName] = useState('');
   const [newIngredients, setNewIngredients] = useState<RecipeIngredient[]>([]);
   const [newSteps, setNewSteps] = useState<string[]>([]);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      setError('Please enter a recipe name');
+      return;
+    }
+    setError('');
+    setSaving(true);
+    try {
+      const recipe = await recipes.create({
+        name: name.trim(),
+        ingredients: newIngredients,
+        instructions: newSteps,
+      });
+      onCreated(recipe);
+    } catch {
+      setError('Failed to create recipe');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label="New recipe" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>New recipe</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label>Recipe name</label>
+            <input
+              className="form-input"
+              placeholder="e.g. Pasta Carbonara"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleCreate();
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <div className="recipe-section">
+            <div className="recipe-section-title">
+              Ingredients
+              {newIngredients.length > 0 && <span className="section-count">{newIngredients.length}</span>}
+            </div>
+            <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
+          </div>
+          <div className="recipe-section">
+            <div className="recipe-section-title">
+              Procedure
+              {newSteps.length > 0 && <span className="section-count">{newSteps.length}</span>}
+            </div>
+            <StepEditor steps={newSteps} onChange={setNewSteps} />
+          </div>
+          {error && <div className="error-msg">{error}</div>}
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={!name.trim() || saving}>
+            {saving ? 'Saving…' : 'Add recipe'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Recipes() {
+  const [list, setList] = useState<Recipe[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -243,32 +332,16 @@ export default function Recipes() {
     recipes.update(id, patch).catch(() => setError('Failed to save changes'));
   };
 
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      setError('Please enter a recipe name');
-      return;
-    }
-    setError('');
-    try {
-      const recipe = await recipes.create({
-        name: name.trim(),
-        ingredients: newIngredients,
-        instructions: newSteps,
-      });
-      setList((prev) => [...prev, recipe]);
-      setName('');
-      setNewIngredients([]);
-      setNewSteps([]);
-      setExpandedId(recipe.id);
-      setSuccess('Recipe saved');
-      if (successTimer.current) clearTimeout(successTimer.current);
-      successTimer.current = setTimeout(() => setSuccess(''), 3000);
-      setTimeout(() => {
-        document.getElementById(`recipe-${recipe.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
-    } catch {
-      setError('Failed to create recipe');
-    }
+  const handleCreated = (recipe: Recipe) => {
+    setList((prev) => [...prev, recipe]);
+    setExpandedId(recipe.id);
+    setShowCreate(false);
+    setSuccess('Recipe saved');
+    if (successTimer.current) clearTimeout(successTimer.current);
+    successTimer.current = setTimeout(() => setSuccess(''), 3000);
+    setTimeout(() => {
+      document.getElementById(`recipe-${recipe.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
   };
 
   const handleDelete = async (id: number) => {
@@ -285,59 +358,24 @@ export default function Recipes() {
   return (
     <div>
       <div className="page-header">
-        <h1>Recipes</h1>
-        <span className="subtitle">{list.length} saved</span>
+        <div className="page-header-title">
+          <h1>Recipes</h1>
+          <span className="subtitle">{list.length} saved</span>
+        </div>
+        <div className="page-header-actions">
+          <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
+            <span className="btn-icon">+</span> New recipe
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
       {success && <div className="info-msg">{success}</div>}
 
-      <div className="card create-card" style={{ marginBottom: '1.5rem' }}>
-        <div className="create-card-header">
-          <h2>New recipe</h2>
-          <span className="create-card-sub">Add the name first, then build up ingredients and steps before saving.</span>
-        </div>
-        <div className="form-group">
-          <label>Recipe name</label>
-          <input
-            className="form-input"
-            placeholder="e.g. Pasta Carbonara"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleCreate();
-              }
-            }}
-          />
-        </div>
-        <div className="recipe-section">
-          <div className="recipe-section-title">
-            Ingredients
-            {newIngredients.length > 0 && <span className="section-count">{newIngredients.length}</span>}
-          </div>
-          <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
-        </div>
-        <div className="recipe-section">
-          <div className="recipe-section-title">
-            Procedure
-            {newSteps.length > 0 && <span className="section-count">{newSteps.length}</span>}
-          </div>
-          <StepEditor steps={newSteps} onChange={setNewSteps} />
-        </div>
-        <div className="create-actions">
-          <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={!name.trim()}>
-            Add recipe
-          </button>
-          <span className="hint">Recipe name is required; ingredients and steps are optional.</span>
-        </div>
-      </div>
-
       <div className="card-grid">
         {list.length === 0 && (
           <div className="empty-state">
-            <p>No recipes yet. Add your first one above.</p>
+            <p>No recipes yet. Click “New recipe” to add your first one.</p>
           </div>
         )}
 
@@ -387,6 +425,13 @@ export default function Recipes() {
           );
         })}
       </div>
+
+      {showCreate && (
+        <RecipeCreateModal
+          onClose={() => setShowCreate(false)}
+          onCreated={handleCreated}
+        />
+      )}
     </div>
   );
 }

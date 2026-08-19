@@ -105,6 +105,23 @@
   margin-bottom: 2rem;
 }
 
+.page-header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  font-weight: 500;
+}
+
 .back-btn {
   display: inline-flex;
   align-items: center;
@@ -154,25 +171,6 @@
   gap: 1rem;
 }
 
-/* ── Create recipe card ──────────────────────── */
-.create-card {
-  border-style: dashed;
-  background: #FFFEFC;
-}
-.create-card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-bottom: 1.25rem;
-}
-.create-card-header h2 {
-  font-size: 1.2rem;
-}
-.create-card-sub {
-  font-size: 0.85rem;
-  color: var(--stone);
-}
-
 .section-count {
   display: inline-block;
   font-family: var(--font-mono);
@@ -183,19 +181,6 @@
   padding: 0.1rem 0.5rem;
   margin-left: 0.4rem;
   vertical-align: middle;
-}
-
-.create-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-light);
-}
-.create-actions .hint {
-  font-size: 0.8rem;
-  color: var(--stone);
 }
 
 /* ── Inline add forms ────────────────────────── */
@@ -612,6 +597,86 @@ textarea.form-input {
   background: var(--green);
   border-radius: 3px;
   transition: width 0.3s ease;
+}
+
+/* ── Modal ───────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(28, 28, 28, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: modal-fade-in 0.15s ease;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: min(90dvh, 680px);
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: modal-pop-in 0.18s ease;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.modal-header h2 {
+  font-size: 1.2rem;
+}
+
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--stone);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.modal-close:hover {
+  background: var(--linen-warm);
+  color: var(--charcoal);
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-pop-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ── Responsive ──────────────────────────────── */
