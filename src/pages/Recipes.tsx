@@ -315,6 +315,8 @@ export default function Recipes() {
   const [query, setQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editingNameId, setEditingNameId] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -385,9 +387,22 @@ export default function Recipes() {
       setTotal((t) => Math.max(0, t - 1));
       if (remaining.length === 0 && page > 1) setPage(page - 1);
       setExpandedId((cur) => (cur === id ? null : cur));
+      setEditingNameId((cur) => (cur === id ? null : cur));
     } catch {
       setError('Failed to delete recipe');
     }
+  };
+
+  const startRename = (recipe: Recipe) => {
+    setEditingNameId(recipe.id);
+    setDraftName(recipe.name);
+  };
+
+  const saveName = (id: number) => {
+    const name = draftName.trim();
+    if (!name) return;
+    setEditingNameId(null);
+    updateRecipe(id, { name });
   };
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -443,20 +458,49 @@ export default function Recipes() {
           return (
             <div key={recipe.id} id={`recipe-${recipe.id}`} className="card">
               <div className="recipe-header">
-                <button
-                  type="button"
-                  className="accordion-toggle"
-                  aria-expanded={expanded}
-                  onClick={() => setExpandedId(expanded ? null : recipe.id)}
-                >
-                  <span className={`accordion-arrow ${expanded ? 'open' : ''}`}>▸</span>
-                </button>
-                <div className="recipe-header-info" onClick={() => setExpandedId(expanded ? null : recipe.id)}>
-                  <div className="recipe-name">{recipe.name}</div>
-                  <div className="recipe-meta">
-                    {ingCount} ingredient{ingCount !== 1 ? 's' : ''} · {stepCount} step{stepCount !== 1 ? 's' : ''}
+                {editingNameId !== recipe.id && (
+                  <button
+                    type="button"
+                    className="accordion-toggle"
+                    aria-expanded={expanded}
+                    onClick={() => setExpandedId(expanded ? null : recipe.id)}
+                  >
+                    <span className={`accordion-arrow ${expanded ? 'open' : ''}`}>▸</span>
+                  </button>
+                )}
+                {editingNameId === recipe.id ? (
+                  <form
+                    className="recipe-name-edit"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveName(recipe.id);
+                    }}
+                  >
+                    <input
+                      className="form-input"
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setEditingNameId(null);
+                      }}
+                      autoFocus
+                    />
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={!draftName.trim()}>
+                      Save
+                    </button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditingNameId(null)}>
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <div className="recipe-header-info" onClick={() => setExpandedId(expanded ? null : recipe.id)}>
+                    <div className="recipe-name">{recipe.name}</div>
+                    <div className="recipe-meta">
+                      {ingCount} ingredient{ingCount !== 1 ? 's' : ''} · {stepCount} step{stepCount !== 1 ? 's' : ''}
+                    </div>
                   </div>
-                </div>
+                )}
+                <button className="btn btn-secondary btn-sm" onClick={() => startRename(recipe)}>Edit</button>
                 <button className="btn btn-danger btn-sm" onClick={() => handleDelete(recipe.id)}>Delete</button>
               </div>
 

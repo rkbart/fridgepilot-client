@@ -254,13 +254,13 @@
 .add-row-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.9rem;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--stone);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -271,7 +271,7 @@
   background: rgba(45, 80, 22, 0.04);
 }
 .add-row-icon {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   line-height: 1;
   font-weight: 500;
 }
@@ -389,7 +389,9 @@ textarea.form-input {
 }
 
 .item-row .item-name {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
   font-weight: 400;
 }
 
@@ -402,6 +404,7 @@ textarea.form-input {
 .item-row .item-actions {
   display: flex;
   gap: 0.35rem;
+  margin-left: auto;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -449,8 +452,24 @@ textarea.form-input {
 }
 
 .recipe-name {
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--charcoal);
+}
+
+.recipe-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+.recipe-name-edit input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .recipe-meta {
@@ -488,7 +507,7 @@ textarea.form-input {
 }
 
 .recipe-section-title {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--charcoal);
 }
