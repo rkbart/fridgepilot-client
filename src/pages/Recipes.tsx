@@ -67,7 +67,28 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
   const remove = (idx: number) => onChange(ingredients.filter((_, i) => i !== idx));
 
   return (
-    <div>
+    <div className="recipe-section">
+      <div className="recipe-section-title-row">
+        <span className="recipe-section-title">
+          Ingredients
+          {ingredients.length > 0 && <span className="section-count">{ingredients.length}</span>}
+        </span>
+        {!adding && (
+          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
+            <span className="add-row-icon">+</span> Add ingredient
+          </button>
+        )}
+      </div>
+      {adding && (
+        <IngredientForm
+          submitLabel="Add"
+          onSubmit={(data) => {
+            add(data);
+            setAdding(false);
+          }}
+          onCancel={() => setAdding(false)}
+        />
+      )}
       {ingredients.length === 0 ? (
         <div className="empty-inline">No ingredients yet</div>
       ) : (
@@ -100,22 +121,6 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
           ))}
         </div>
       )}
-      <div style={{ marginTop: '0.5rem' }}>
-        {adding ? (
-          <IngredientForm
-            submitLabel="Add"
-            onSubmit={(data) => {
-              add(data);
-              setAdding(false);
-            }}
-            onCancel={() => setAdding(false)}
-          />
-        ) : (
-          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
-            <span className="add-row-icon">+</span> Add ingredient
-          </button>
-        )}
-      </div>
     </div>
   );
 }
@@ -167,7 +172,28 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
   const remove = (idx: number) => onChange(steps.filter((_, i) => i !== idx));
 
   return (
-    <div>
+    <div className="recipe-section">
+      <div className="recipe-section-title-row">
+        <span className="recipe-section-title">
+          Procedure
+          {steps.length > 0 && <span className="section-count">{steps.length}</span>}
+        </span>
+        {!adding && (
+          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
+            <span className="add-row-icon">+</span> Add step
+          </button>
+        )}
+      </div>
+      {adding && (
+        <StepForm
+          submitLabel="Add"
+          onSubmit={(text) => {
+            add(text);
+            setAdding(false);
+          }}
+          onCancel={() => setAdding(false)}
+        />
+      )}
       {steps.length === 0 ? (
         <div className="empty-inline">No steps yet</div>
       ) : (
@@ -198,22 +224,6 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
           ))}
         </div>
       )}
-      <div style={{ marginTop: '0.5rem' }}>
-        {adding ? (
-          <StepForm
-            submitLabel="Add"
-            onSubmit={(text) => {
-              add(text);
-              setAdding(false);
-            }}
-            onCancel={() => setAdding(false)}
-          />
-        ) : (
-          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
-            <span className="add-row-icon">+</span> Add step
-          </button>
-        )}
-      </div>
     </div>
   );
 }
@@ -282,20 +292,8 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
               autoFocus
             />
           </div>
-          <div className="recipe-section">
-            <div className="recipe-section-title">
-              Ingredients
-              {newIngredients.length > 0 && <span className="section-count">{newIngredients.length}</span>}
-            </div>
-            <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
-          </div>
-          <div className="recipe-section">
-            <div className="recipe-section-title">
-              Procedure
-              {newSteps.length > 0 && <span className="section-count">{newSteps.length}</span>}
-            </div>
-            <StepEditor steps={newSteps} onChange={setNewSteps} />
-          </div>
+          <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
+          <StepEditor steps={newSteps} onChange={setNewSteps} />
           {error && <div className="error-msg">{error}</div>}
         </div>
         <div className="modal-footer">
@@ -311,15 +309,50 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
 
 export default function Recipes() {
   const [list, setList] = useState<Recipe[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+  const [query, setQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingScrollId = useRef<number | null>(null);
 
   useEffect(() => {
-    recipes.list().then(setList).catch(() => setError('Failed to load recipes'));
-  }, []);
+    const t = setTimeout(() => {
+      setQuery(searchInput.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    let cancelled = false;
+    recipes
+      .list({ q: query, page, per_page: perPage })
+      .then(({ data, meta }) => {
+        if (cancelled) return;
+        setList(data);
+        setTotal(meta.total);
+        setError('');
+        if (pendingScrollId.current != null && data.some((r) => r.id === pendingScrollId.current)) {
+          setExpandedId(pendingScrollId.current);
+          setTimeout(() => {
+            document.getElementById(`recipe-${pendingScrollId.current}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 60);
+          pendingScrollId.current = null;
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError('Failed to load recipes');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, page, perPage]);
 
   useEffect(() => {
     return () => {
@@ -333,39 +366,59 @@ export default function Recipes() {
   };
 
   const handleCreated = (recipe: Recipe) => {
-    setList((prev) => [...prev, recipe]);
-    setExpandedId(recipe.id);
+    pendingScrollId.current = recipe.id;
     setShowCreate(false);
+    setSearchInput('');
+    setQuery('');
+    setPage(1);
     setSuccess('Recipe saved');
     if (successTimer.current) clearTimeout(successTimer.current);
     successTimer.current = setTimeout(() => setSuccess(''), 3000);
-    setTimeout(() => {
-      document.getElementById(`recipe-${recipe.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
   };
 
   const handleDelete = async (id: number) => {
     setError('');
     try {
       await recipes.delete(id);
-      setList((prev) => prev.filter((r) => r.id !== id));
-      if (expandedId === id) setExpandedId(null);
+      const remaining = list.filter((r) => r.id !== id);
+      setList(remaining);
+      setTotal((t) => Math.max(0, t - 1));
+      if (remaining.length === 0 && page > 1) setPage(page - 1);
+      setExpandedId((cur) => (cur === id ? null : cur));
     } catch {
       setError('Failed to delete recipe');
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   return (
     <div>
       <div className="page-header">
         <div className="page-header-title">
           <h1>Recipes</h1>
-          <span className="subtitle">{list.length} saved</span>
+          <span className="subtitle">{total} saved</span>
         </div>
         <div className="page-header-actions">
           <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
             <span className="btn-icon">+</span> New recipe
           </button>
+        </div>
+      </div>
+
+      <div className="recipes-toolbar">
+        <div className="search-box">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.5" y2="16.5" />
+          </svg>
+          <input
+            className="form-input"
+            type="search"
+            placeholder="Search recipes…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
         </div>
       </div>
 
@@ -375,7 +428,11 @@ export default function Recipes() {
       <div className="card-grid">
         {list.length === 0 && (
           <div className="empty-state">
-            <p>No recipes yet. Click “New recipe” to add your first one.</p>
+            <p>
+              {query
+                ? `No recipes match “${query}”.`
+                : 'No recipes yet. Click “New recipe” to add your first one.'}
+            </p>
           </div>
         )}
 
@@ -405,26 +462,34 @@ export default function Recipes() {
 
               <div className={`recipe-body ${expanded ? 'open' : ''}`}>
                 <div>
-                  <div className="recipe-section">
-                    <div className="recipe-section-title">Ingredients</div>
-                    <IngredientEditor
-                      ingredients={recipe.ingredients || []}
-                      onChange={(next) => updateRecipe(recipe.id, { ingredients: next })}
-                    />
-                  </div>
-                  <div className="recipe-section">
-                    <div className="recipe-section-title">Procedure</div>
-                    <StepEditor
-                      steps={recipe.instructions || []}
-                      onChange={(next) => updateRecipe(recipe.id, { instructions: next })}
-                    />
-                  </div>
+                  <IngredientEditor
+                    ingredients={recipe.ingredients || []}
+                    onChange={(next) => updateRecipe(recipe.id, { ingredients: next })}
+                  />
+                  <StepEditor
+                    steps={recipe.instructions || []}
+                    onChange={(next) => updateRecipe(recipe.id, { instructions: next })}
+                  />
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            ← Prev
+          </button>
+          <span className="pagination-info">
+            Page {page} of {totalPages}
+          </span>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next →
+          </button>
+        </div>
+      )}
 
       {showCreate && (
         <RecipeCreateModal
