@@ -118,8 +118,20 @@ export interface Recipe {
   instructions: string[];
 }
 
+export interface RecipeListResult {
+  data: Recipe[];
+  meta: { total: number; page: number; per_page: number };
+}
+
 export const recipes = {
-  list: () => request<Recipe[]>('/api/v1/recipes'),
+  list: (params?: { q?: string; page?: number; per_page?: number }): Promise<RecipeListResult> => {
+    const qs = new URLSearchParams();
+    if (params?.q) qs.set('q', params.q);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    const query = qs.toString();
+    return request<RecipeListResult>(`/api/v1/recipes${query ? `?${query}` : ''}`);
+  },
   get: (id: number) => request<Recipe>(`/api/v1/recipes/${id}`),
   create: (data: { name: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
     request<Recipe>('/api/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe: data }) }),
