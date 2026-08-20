@@ -64,7 +64,9 @@ Create a `.env` file (see `.env.example`). Only `VITE_*` variables are exposed t
 src/
 ├── App.tsx               # Router + auth-aware layout
 ├── components/
-│   └── RequireAuth.tsx   # Redirects unauthenticated users to /login
+│   ├── RequireAuth.tsx    # Redirects unauthenticated users to /login
+│   ├── ChevronActions.tsx # Row with a chevron-reveal Edit/Delete action panel
+│   └── EditModal.tsx      # Generic field-driven edit modal (bottom-sheet on mobile, centered card on desktop)
 ├── pages/                # One component per route
 ├── services/
 │   └── api.ts            # API client (fetch wrapper, JWT handling, typed endpoints)

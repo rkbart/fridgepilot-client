@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { pantry, type PantryItem } from '../services/api';
-import SwipeToReveal from '../components/SwipeToReveal';
-import BottomSheet from '../components/BottomSheet';
+import ChevronActions from '../components/ChevronActions';
+import EditModal from '../components/EditModal';
 
 export default function Pantry() {
   const [list, setList] = useState<PantryItem[]>([]);
@@ -9,10 +9,8 @@ export default function Pantry() {
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('');
   const [error, setError] = useState('');
+  const [openId, setOpenId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editQuantity, setEditQuantity] = useState('');
-  const [editUnit, setEditUnit] = useState('');
 
   useEffect(() => {
     pantry.list().then(setList).catch(() => setError('Failed to load pantry'));
@@ -36,23 +34,11 @@ export default function Pantry() {
     }
   };
 
-  const openEdit = (item: PantryItem) => {
-    setEditingItem(item);
-    setEditName(item.name);
-    setEditQuantity(item.quantity != null ? String(item.quantity) : '');
-    setEditUnit(item.unit || '');
-  };
-
-  const handleUpdate = async () => {
-    if (!editingItem) return;
+  const handleUpdate = async (id: number, values: { name: string; quantity?: number; unit?: string }) => {
     setError('');
     try {
-      const updated = await pantry.update(editingItem.id, {
-        name: editName,
-        quantity: editQuantity ? Number(editQuantity) : undefined,
-        unit: editUnit || undefined,
-      });
-      setList((prev) => prev.map((i) => (i.id === editingItem.id ? updated : i)));
+      const updated = await pantry.update(id, values);
+      setList((prev) => prev.map((i) => (i.id === id ? updated : i)));
       setEditingItem(null);
     } catch {
       setError('Failed to update item');
@@ -60,8 +46,14 @@ export default function Pantry() {
   };
 
   const handleDelete = async (id: number) => {
-    await pantry.delete(id);
-    setList((prev) => prev.filter((i) => i.id !== id));
+    setError('');
+    try {
+      await pantry.delete(id);
+      setList((prev) => prev.filter((i) => i.id !== id));
+      setOpenId(null);
+    } catch {
+      setError('Failed to delete item');
+    }
   };
 
   return (
@@ -101,49 +93,45 @@ export default function Pantry() {
         ) : (
           <div className="item-list">
             {list.map((item) => (
-              <div key={item.id} className="item-row">
-                <SwipeToReveal
-                  actions={
-                    <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}>Delete</button>
-                    </>
-                  }
-                >
-                  <span className="item-name">{item.name}</span>
-                  {item.quantity != null && (
-                    <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
-                  )}
-                  <div className="item-actions">
-                    <button className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}>Delete</button>
-                  </div>
-                </SwipeToReveal>
-              </div>
+              <ChevronActions
+                key={item.id}
+                isOpen={openId === item.id}
+                onToggle={() => setOpenId((cur) => (cur === item.id ? null : item.id))}
+                actions={
+                  <>
+                    <button className="action-edit-btn" onClick={() => setEditingItem(item)}>Edit</button>
+                    <button className="action-delete-btn" onClick={() => handleDelete(item.id)}>Delete</button>
+                  </>
+                }
+              >
+                <span className="item-name">{item.name}</span>
+                {item.quantity != null && (
+                  <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
+                )}
+              </ChevronActions>
             ))}
           </div>
         )}
       </div>
 
       {editingItem && (
-        <BottomSheet open={true} onClose={() => setEditingItem(null)} title="Edit item">
-          <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-            <label>Name</label>
-            <input className="form-input" value={editName} onChange={(e) => setEditName(e.target.value)} required />
-          </div>
-          <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-            <label>Qty</label>
-            <input className="form-input" type="number" value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label>Unit</label>
-            <input className="form-input" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} />
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => setEditingItem(null)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleUpdate} disabled={!editName.trim()}>Save</button>
-          </div>
-        </BottomSheet>
+        <EditModal
+          title="Edit item"
+          fields={[
+            { key: 'name', label: 'Name', required: true, autoFocus: true },
+            { key: 'quantity', label: 'Qty', type: 'number', placeholder: '12' },
+            { key: 'unit', label: 'Unit', placeholder: 'pcs' },
+          ]}
+          initial={editingItem}
+          onSubmit={(values) =>
+            handleUpdate(editingItem.id, {
+              name: values.name as string,
+              quantity: values.quantity ? Number(values.quantity) : undefined,
+              unit: (values.unit as string) || undefined,
+            })
+          }
+          onCancel={() => setEditingItem(null)}
+        />
       )}
     </div>
   );

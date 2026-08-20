@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { groceryLists, UNITS, type GroceryItem, type GroceryList } from '../services/api';
-import SwipeToReveal from '../components/SwipeToReveal';
-import BottomSheet from '../components/BottomSheet';
+import ChevronActions from '../components/ChevronActions';
+import EditModal from '../components/EditModal';
 
 interface ItemFormProps {
   initial?: Partial<GroceryItem>;
@@ -57,9 +57,11 @@ export default function GroceryListPage() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 10;
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [addingToList, setAddingToList] = useState<number | null>(null);
-  const [editingListId, setEditingListId] = useState<number | null>(null);
-  const [draftListName, setDraftListName] = useState('');
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [editingList, setEditingList] = useState<GroceryList | null>(null);
+  const [editingItem, setEditingItem] = useState<{ listId: number; item: GroceryItem } | null>(null);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -71,6 +73,23 @@ export default function GroceryListPage() {
     }, 250);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  useEffect(() => {
+    if (expandedId == null) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const el = document.getElementById(`grocery-list-${expandedId}`);
+      if (el && !el.contains(e.target as Node)) {
+        setExpandedId(null);
+        setAddingToList(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [expandedId]);
 
   const filtered = useMemo(() => {
     if (!debouncedQuery) return lists;
@@ -97,13 +116,12 @@ export default function GroceryListPage() {
     }
   };
 
-  const handleRenameList = async (listId: number) => {
-    if (!draftListName.trim()) return;
+  const handleRenameList = async (list: GroceryList, name: string) => {
     setError('');
     try {
-      const updated = await groceryLists.update(listId, { name: draftListName.trim() });
-      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, ...updated } : l)));
-      setEditingListId(null);
+      const updated = await groceryLists.update(list.id, { name });
+      setLists((prev) => prev.map((l) => (l.id === list.id ? { ...l, ...updated } : l)));
+      setEditingList(null);
     } catch {
       setError('Failed to rename list');
     }
@@ -114,6 +132,7 @@ export default function GroceryListPage() {
     try {
       await groceryLists.delete(id);
       setLists((prev) => prev.filter((l) => l.id !== id));
+      if (expandedId === id) setExpandedId(null);
     } catch {
       setError('Failed to delete list');
     }
@@ -157,6 +176,7 @@ export default function GroceryListPage() {
             : l
         )
       );
+      setEditingItem(null);
     } catch {
       setError('Failed to update item');
     }
@@ -175,6 +195,8 @@ export default function GroceryListPage() {
       setError('Failed to delete item');
     }
   };
+
+  const toggleOpen = (key: string) => setOpenKey((cur) => (cur === key ? null : key));
 
   return (
     <div>
@@ -234,32 +256,32 @@ export default function GroceryListPage() {
       )}
 
       {paginated.map((list) => {
-        const expanded = addingToList === list.id;
+        const expanded = expandedId === list.id;
         const itemCount = list.items.length;
         return (
-          <div key={list.id} className="card" style={{ marginBottom: '1rem' }}>
-            <div className="recipe-header">
+          <div key={list.id} id={`grocery-list-${list.id}`} className="card" style={{ marginBottom: '1rem' }}>
+            <ChevronActions
+              isOpen={openKey === `list-${list.id}`}
+              onToggle={() => toggleOpen(`list-${list.id}`)}
+              actions={
+                <>
+                  <button className="action-edit-btn" onClick={() => setEditingList(list)}>Edit</button>
+                  <button className="action-delete-btn" onClick={() => handleDeleteList(list.id)}>Delete</button>
+                </>
+              }
+            >
               <button
                 type="button"
-                className="accordion-toggle"
+                className="recipe-header-info"
                 aria-expanded={expanded}
-                onClick={() => setAddingToList(expanded ? null : list.id)}
+                onClick={() => setExpandedId(expanded ? null : list.id)}
               >
-                <span className={`accordion-arrow ${expanded ? 'open' : ''}`}>▸</span>
-              </button>
-              <div className="recipe-header-info" onClick={() => setAddingToList(expanded ? null : list.id)}>
                 <div className="recipe-name">{list.name}</div>
                 <div className="recipe-meta">
                   {itemCount} item{itemCount !== 1 ? 's' : ''} · {list.source === 'ai_generated' ? 'AI' : 'Manual'}
                 </div>
-              </div>
-              <div className="recipe-header-actions">
-                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingListId(list.id); setDraftListName(list.name); }}>Edit</button>
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteList(list.id)}>Delete</button>
-                <button className="btn btn-icon-only" onClick={() => { setEditingListId(list.id); setDraftListName(list.name); }} aria-label="Edit">✏️</button>
-                <button className="btn btn-icon-only" onClick={() => handleDeleteList(list.id)} aria-label="Delete">🗑️</button>
-              </div>
-            </div>
+              </button>
+            </ChevronActions>
 
             <div className={`recipe-body ${expanded ? 'open' : ''}`}>
               <div>
@@ -268,34 +290,31 @@ export default function GroceryListPage() {
                 ) : (
                   <div className="item-list">
                     {list.items.map((item) => (
-                      <div key={item.id} className="item-row">
-                        <SwipeToReveal
-                          actions={
-                            <>
-                              <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateItem(list.id, item.id, { name: item.name })}>Edit</button>
-                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem(list.id, item.id)}>Delete</button>
-                            </>
-                          }
-                        >
-                          <label className={`checkbox-label ${item.status === 'checked' ? 'checked' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={item.status === 'checked'}
-                              onChange={() => handleToggleItem(list.id, item)}
-                            />
-                            <span className="item-text">{item.name}</span>
-                          </label>
-                          {item.quantity != null && (
-                            <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
-                          )}
-                          {item.source === 'ai_suggested' && <span className="tag tag-ai">AI</span>}
-                          {item.status === 'pending' && <span className="tag tag-pending">Pending</span>}
-                          <div className="item-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateItem(list.id, item.id, { name: item.name })}>Edit</button>
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem(list.id, item.id)}>Delete</button>
-                          </div>
-                        </SwipeToReveal>
-                      </div>
+                      <ChevronActions
+                        key={item.id}
+                        isOpen={openKey === `item-${list.id}-${item.id}`}
+                        onToggle={() => toggleOpen(`item-${list.id}-${item.id}`)}
+                        actions={
+                          <>
+                            <button className="action-edit-btn" onClick={() => setEditingItem({ listId: list.id, item })}>Edit</button>
+                            <button className="action-delete-btn" onClick={() => handleDeleteItem(list.id, item.id)}>Delete</button>
+                          </>
+                        }
+                      >
+                        <label className={`checkbox-label ${item.status === 'checked' ? 'checked' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={item.status === 'checked'}
+                            onChange={() => handleToggleItem(list.id, item)}
+                          />
+                          <span className="item-text">{item.name}</span>
+                        </label>
+                        {item.quantity != null && (
+                          <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
+                        )}
+                        {item.source === 'ai_suggested' && <span className="tag tag-ai">AI</span>}
+                        {item.status === 'pending' && <span className="tag tag-pending">Pending</span>}
+                      </ChevronActions>
                     ))}
                   </div>
                 )}
@@ -335,17 +354,34 @@ export default function GroceryListPage() {
         </div>
       )}
 
-      {editingListId && (
-        <BottomSheet open={true} onClose={() => setEditingListId(null)} title="Rename list">
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label>List name</label>
-            <input className="form-input" value={draftListName} onChange={(e) => setDraftListName(e.target.value)} required autoFocus />
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => setEditingListId(null)}>Cancel</button>
-            <button className="btn btn-primary" onClick={() => handleRenameList(editingListId)} disabled={!draftListName.trim()}>Save</button>
-          </div>
-        </BottomSheet>
+      {editingList && (
+        <EditModal
+          title="Rename list"
+          fields={[{ key: 'name', label: 'List name', required: true, autoFocus: true }]}
+          initial={{ name: editingList.name }}
+          onSubmit={(values) => handleRenameList(editingList, String(values.name ?? '').trim())}
+          onCancel={() => setEditingList(null)}
+        />
+      )}
+
+      {editingItem && (
+        <EditModal
+          title="Edit item"
+          fields={[
+            { key: 'name', label: 'Name', required: true, autoFocus: true },
+            { key: 'quantity', label: 'Qty', type: 'number', placeholder: '1' },
+            { key: 'unit', label: 'Unit', type: 'select', options: UNITS },
+          ]}
+          initial={editingItem.item}
+          onSubmit={(values) =>
+            handleUpdateItem(editingItem.listId, editingItem.item.id, {
+              name: String(values.name ?? '').trim(),
+              quantity: values.quantity ? Number(values.quantity) : undefined,
+              unit: String(values.unit ?? '').trim() || undefined,
+            })
+          }
+          onCancel={() => setEditingItem(null)}
+        />
       )}
     </div>
   );

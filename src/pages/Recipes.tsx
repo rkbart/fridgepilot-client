@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { recipes, UNITS, type Recipe, type RecipeIngredient } from '../services/api';
-import SwipeToReveal from '../components/SwipeToReveal';
+import ChevronActions from '../components/ChevronActions';
+import EditModal from '../components/EditModal';
 
 interface IngredientFormProps {
   initial?: RecipeIngredient;
@@ -56,8 +57,9 @@ interface IngredientEditorProps {
 }
 
 function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
-  const [editing, setEditing] = useState<number | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   const add = (data: RecipeIngredient) => onChange([...ingredients, data]);
   const update = (idx: number, data: RecipeIngredient) => {
@@ -95,39 +97,45 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
       ) : (
         <div className="item-list">
           {ingredients.map((ing, idx) => (
-            <div key={idx} className="item-row">
-              {editing === idx ? (
-                <IngredientForm
-                  initial={ing}
-                  submitLabel="Save"
-                  onSubmit={(data) => {
-                    update(idx, data);
-                    setEditing(null);
-                  }}
-                  onCancel={() => setEditing(null)}
-                />
-              ) : (
-                <SwipeToReveal
-                  actions={
-                    <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
-                    </>
-                  }
-                >
-                  <span className="item-name">{ing.name}</span>
-                  {ing.quantity != null && (
-                    <span className="item-meta">{ing.quantity}{ing.unit ? ` ${ing.unit}` : ''}</span>
-                  )}
-                  <div className="item-actions">
-                    <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
-                  </div>
-                </SwipeToReveal>
+            <ChevronActions
+              key={idx}
+              isOpen={openIdx === idx}
+              onToggle={() => setOpenIdx((cur) => (cur === idx ? null : idx))}
+              actions={
+                <>
+                  <button className="action-edit-btn" onClick={() => setEditingIdx(idx)}>Edit</button>
+                  <button className="action-delete-btn" onClick={() => remove(idx)}>Delete</button>
+                </>
+              }
+            >
+              <span className="item-name">{ing.name}</span>
+              {ing.quantity != null && (
+                <span className="item-meta">{ing.quantity}{ing.unit ? ` ${ing.unit}` : ''}</span>
               )}
-            </div>
+            </ChevronActions>
           ))}
         </div>
+      )}
+
+      {editingIdx != null && (
+        <EditModal
+          title="Edit ingredient"
+          fields={[
+            { key: 'name', label: 'Ingredient', required: true, autoFocus: true },
+            { key: 'quantity', label: 'Qty', type: 'number', placeholder: '200' },
+            { key: 'unit', label: 'Unit', type: 'select', options: UNITS },
+          ]}
+          initial={ingredients[editingIdx] ?? {}}
+          onSubmit={(values) => {
+            update(editingIdx, {
+              name: String(values.name ?? '').trim(),
+              quantity: values.quantity ? Number(values.quantity) : undefined,
+              unit: String(values.unit ?? '').trim() || undefined,
+            });
+            setEditingIdx(null);
+          }}
+          onCancel={() => setEditingIdx(null)}
+        />
       )}
     </div>
   );
@@ -168,8 +176,9 @@ interface StepEditorProps {
 }
 
 function StepEditor({ steps, onChange }: StepEditorProps) {
-  const [editing, setEditing] = useState<number | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   const add = (text: string) => onChange([...steps, text]);
   const update = (idx: number, text: string) => {
@@ -207,39 +216,37 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
       ) : (
         <div className="item-list">
           {steps.map((step, idx) => (
-            <div key={idx} className="item-row">
-              {editing === idx ? (
-                <StepForm
-                  initial={step}
-                  submitLabel="Save"
-                  onSubmit={(text) => {
-                    update(idx, text);
-                    setEditing(null);
-                  }}
-                  onCancel={() => setEditing(null)}
-                />
-              ) : (
-                <SwipeToReveal
-                  actions={
-                    <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
-                    </>
-                  }
-                >
-                  <div className="step-row">
-                    <span className="step-number">{idx + 1}.</span>
-                    <span className="item-name">{step}</span>
-                  </div>
-                  <div className="item-actions">
-                    <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
-                  </div>
-                </SwipeToReveal>
-              )}
-            </div>
+            <ChevronActions
+              key={idx}
+              isOpen={openIdx === idx}
+              onToggle={() => setOpenIdx((cur) => (cur === idx ? null : idx))}
+              actions={
+                <>
+                  <button className="action-edit-btn" onClick={() => setEditingIdx(idx)}>Edit</button>
+                  <button className="action-delete-btn" onClick={() => remove(idx)}>Delete</button>
+                </>
+              }
+            >
+              <div className="step-row">
+                <span className="step-number">{idx + 1}.</span>
+                <span className="item-name">{step}</span>
+              </div>
+            </ChevronActions>
           ))}
         </div>
+      )}
+
+      {editingIdx != null && (
+        <EditModal
+          title="Edit step"
+          fields={[{ key: 'text', label: 'Step', required: true, autoFocus: true }]}
+          initial={{ text: steps[editingIdx] ?? '' }}
+          onSubmit={(values) => {
+            update(editingIdx, String(values.text ?? '').trim());
+            setEditingIdx(null);
+          }}
+          onCancel={() => setEditingIdx(null)}
+        />
       )}
     </div>
   );
@@ -332,8 +339,8 @@ export default function Recipes() {
   const [query, setQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [editingNameId, setEditingNameId] = useState<number | null>(null);
-  const [draftName, setDraftName] = useState('');
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<Recipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -347,6 +354,22 @@ export default function Recipes() {
     }, 250);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  useEffect(() => {
+    if (expandedId == null) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const el = document.getElementById(`recipe-${expandedId}`);
+      if (el && !el.contains(e.target as Node)) {
+        setExpandedId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [expandedId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -404,22 +427,10 @@ export default function Recipes() {
       setTotal((t) => Math.max(0, t - 1));
       if (remaining.length === 0 && page > 1) setPage(page - 1);
       setExpandedId((cur) => (cur === id ? null : cur));
-      setEditingNameId((cur) => (cur === id ? null : cur));
+      setRenaming((cur) => (cur?.id === id ? null : cur));
     } catch {
       setError('Failed to delete recipe');
     }
-  };
-
-  const startRename = (recipe: Recipe) => {
-    setEditingNameId(recipe.id);
-    setDraftName(recipe.name);
-  };
-
-  const saveName = (id: number) => {
-    const name = draftName.trim();
-    if (!name) return;
-    setEditingNameId(null);
-    updateRecipe(id, { name });
   };
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -474,56 +485,28 @@ export default function Recipes() {
           const stepCount = (recipe.instructions || []).length;
           return (
             <div key={recipe.id} id={`recipe-${recipe.id}`} className="card">
-              <div className="recipe-header">
-                {editingNameId !== recipe.id && (
-                  <button
-                    type="button"
-                    className="accordion-toggle"
-                    aria-expanded={expanded}
-                    onClick={() => setExpandedId(expanded ? null : recipe.id)}
-                  >
-                    <span className={`accordion-arrow ${expanded ? 'open' : ''}`}>▸</span>
-                  </button>
-                )}
-                {editingNameId === recipe.id ? (
-                  <form
-                    className="recipe-name-edit"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      saveName(recipe.id);
-                    }}
-                  >
-                    <input
-                      className="form-input"
-                      value={draftName}
-                      onChange={(e) => setDraftName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') setEditingNameId(null);
-                      }}
-                      autoFocus
-                    />
-                    <button type="submit" className="btn btn-primary btn-sm" disabled={!draftName.trim()}>
-                      Save
-                    </button>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditingNameId(null)}>
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
-                  <div className="recipe-header-info" onClick={() => setExpandedId(expanded ? null : recipe.id)}>
-                    <div className="recipe-name">{recipe.name}</div>
-                    <div className="recipe-meta">
-                      {ingCount} ingredient{ingCount !== 1 ? 's' : ''} · {stepCount} step{stepCount !== 1 ? 's' : ''}
-                    </div>
+              <ChevronActions
+                isOpen={openKey === `recipe-${recipe.id}`}
+                onToggle={() => setOpenKey((cur) => (cur === `recipe-${recipe.id}` ? null : `recipe-${recipe.id}`))}
+                actions={
+                  <>
+                    <button className="action-edit-btn" onClick={() => setRenaming(recipe)}>Edit</button>
+                    <button className="action-delete-btn" onClick={() => handleDelete(recipe.id)}>Delete</button>
+                  </>
+                }
+              >
+                <button
+                  type="button"
+                  className="recipe-header-info"
+                  aria-expanded={expanded}
+                  onClick={() => setExpandedId(expanded ? null : recipe.id)}
+                >
+                  <div className="recipe-name">{recipe.name}</div>
+                  <div className="recipe-meta">
+                    {ingCount} ingredient{ingCount !== 1 ? 's' : ''} · {stepCount} step{stepCount !== 1 ? 's' : ''}
                   </div>
-                )}
-                <div className="recipe-header-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={() => startRename(recipe)}>Edit</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(recipe.id)}>Delete</button>
-                  <button className="btn btn-icon-only" onClick={() => startRename(recipe)} aria-label="Edit">✏️</button>
-                  <button className="btn btn-icon-only" onClick={() => handleDelete(recipe.id)} aria-label="Delete">🗑️</button>
-                </div>
-              </div>
+                </button>
+              </ChevronActions>
 
               <div className={`recipe-body ${expanded ? 'open' : ''}`}>
                 <div>
@@ -554,6 +537,21 @@ export default function Recipes() {
             Next →
           </button>
         </div>
+      )}
+
+      {renaming && (
+        <EditModal
+          title="Rename recipe"
+          fields={[{ key: 'name', label: 'Recipe name', required: true, autoFocus: true }]}
+          initial={{ name: renaming.name }}
+          onSubmit={(values) => {
+            const name = String(values.name ?? '').trim();
+            if (!name) return;
+            updateRecipe(renaming.id, { name });
+            setRenaming(null);
+          }}
+          onCancel={() => setRenaming(null)}
+        />
       )}
 
       {showCreate && (
