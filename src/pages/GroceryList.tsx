@@ -23,16 +23,16 @@ function ItemForm({ initial, submitLabel, onSubmit, onCancel }: ItemFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
-      <div className="form-group" style={{ flex: 2 }}>
+    <form onSubmit={handleSubmit} className="stack-form">
+      <div className="form-group">
         <label>Item name</label>
         <input className="form-input" placeholder="e.g. Milk" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
       </div>
-      <div className="form-group" style={{ flex: 1 }}>
+      <div className="form-group">
         <label>Qty</label>
         <input className="form-input" type="number" min="0" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
       </div>
-      <div className="form-group" style={{ flex: 1 }}>
+      <div className="form-group">
         <label>Unit</label>
         <select className="form-input" value={unit} onChange={(e) => setUnit(e.target.value)}>
           <option value="">None</option>
@@ -141,15 +141,17 @@ export default function GroceryListPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Grocery Lists</h1>
-        <span className="subtitle">{lists.length} list{lists.length !== 1 ? 's' : ''}</span>
+        <div className="page-header-title">
+          <h1>Grocery Lists</h1>
+          <span className="subtitle">{lists.length} list{lists.length !== 1 ? 's' : ''}</span>
+        </div>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <form onSubmit={handleCreateList} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ flex: 1 }}>
+        <form onSubmit={handleCreateList} className="stack-form">
+          <div className="form-group">
             <label>New list name</label>
             <input className="form-input" placeholder="e.g. Weekly groceries" value={listName} onChange={(e) => setListName(e.target.value)} required />
           </div>
@@ -165,8 +167,8 @@ export default function GroceryListPage() {
 
       {lists.map((list) => (
         <div key={list.id} className="card" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ flex: 1, fontSize: '1.1rem', margin: 0 }}>{list.name}</h3>
+          <div className="grocery-list-header-row">
+            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>{list.name}</h3>
             <span className={`tag ${list.source === 'ai_generated' ? 'tag-ai' : 'tag-manual'}`}>
               {list.source === 'ai_generated' ? 'AI' : 'Manual'}
             </span>
@@ -175,7 +177,7 @@ export default function GroceryListPage() {
           </div>
 
           {list.items.length === 0 ? (
-            <div style={{ color: 'var(--stone)', fontSize: '0.9rem', padding: '0.5rem 0' }}>No items yet</div>
+            <div className="empty-inline">No items yet</div>
           ) : (
             <div className="item-list">
               {list.items.map((item) => (

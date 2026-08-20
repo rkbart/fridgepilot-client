@@ -57,6 +57,24 @@ function Sidebar() {
   );
 }
 
+function MobileNav() {
+  const location = useLocation();
+  return (
+    <nav className="mobile-nav">
+      {NAV_ITEMS.map((item) => (
+        <Link
+          key={item.path}
+          to={item.path}
+          className={location.pathname === item.path ? 'active' : ''}
+        >
+          <span className="mobile-nav-icon">{item.icon}</span>
+          <span className="mobile-nav-label">{item.label}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function AppRoutes() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
@@ -86,6 +104,7 @@ function AppRoutes() {
             <Route path="*" element={<Navigate to="/recipes" replace />} />
           </Routes>
         </main>
+        <MobileNav />
       </div>
     </RequireAuth>
   );

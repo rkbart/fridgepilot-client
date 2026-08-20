@@ -38,23 +38,25 @@ export default function Pantry() {
   return (
     <div>
       <div className="page-header">
-        <h1>Pantry</h1>
-        <span className="subtitle">{list.length} item{list.length !== 1 ? 's' : ''}</span>
+        <div className="page-header-title">
+          <h1>Pantry</h1>
+          <span className="subtitle">{list.length} item{list.length !== 1 ? 's' : ''}</span>
+        </div>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ flex: 2 }}>
+        <form onSubmit={handleCreate} className="stack-form">
+          <div className="form-group">
             <label>Item name</label>
             <input className="form-input" placeholder="e.g. Eggs" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
-          <div className="form-group" style={{ flex: 1 }}>
+          <div className="form-group">
             <label>Qty</label>
             <input className="form-input" type="number" placeholder="12" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
           </div>
-          <div className="form-group" style={{ flex: 1 }}>
+          <div className="form-group">
             <label>Unit</label>
             <input className="form-input" placeholder="pcs" value={unit} onChange={(e) => setUnit(e.target.value)} />
           </div>
