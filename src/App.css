@@ -837,6 +837,142 @@ textarea.form-input {
   margin-left: 0.35rem;
 }
 
+/* ── Pantry category jump navigation ─────────── */
+.pantry-chips-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.pantry-chips {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.pantry-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.pantry-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--charcoal);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.pantry-chip:hover {
+  border-color: var(--stone);
+}
+.pantry-chip.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+}
+.pantry-chip.active:hover {
+  background: var(--green-light);
+  border-color: var(--green-light);
+}
+
+.pantry-chip-toggle {
+  min-width: 7.5rem;
+  justify-content: center;
+}
+
+.pantry-chip-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.pantry-section {
+  border-radius: var(--radius);
+}
+
+.pantry-grid {
+  overflow-anchor: none;
+}
+
+.pantry-category-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.25s ease, opacity 0.25s ease;
+}
+
+.pantry-category-body.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.pantry-category-body-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pantry-section-flash {
+  animation: pantry-section-flash 1.2s ease-out;
+}
+
+@keyframes pantry-section-flash {
+  0% { background-color: rgba(212, 168, 67, 0.16); }
+  100% { background-color: transparent; }
+}
+
+@media (min-width: 768px) {
+  .pantry-chips {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+
+/* ── Back to top ──────────────────────────────── */
+.back-to-top {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 25;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--white);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.back-to-top:hover {
+  background: var(--green-light);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .back-to-top {
+    right: 0.75rem;
+    bottom: 4.75rem;
+  }
+}
+
 /* ── Auth pages ──────────────────────────────── */
 .auth-layout {
   display: flex;
