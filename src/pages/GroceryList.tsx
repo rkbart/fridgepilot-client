@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { groceryLists, UNITS, type GroceryItem, type GroceryList } from '../services/api';
+import SwipeToReveal from '../components/SwipeToReveal';
+import BottomSheet from '../components/BottomSheet';
 
 interface ItemFormProps {
   initial?: Partial<GroceryItem>;
@@ -23,16 +25,16 @@ function ItemForm({ initial, submitLabel, onSubmit, onCancel }: ItemFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="stack-form">
-      <div className="form-group">
+    <form onSubmit={handleSubmit} className="inline-form">
+      <div className="form-group inline-form-field-lg">
         <label>Item name</label>
         <input className="form-input" placeholder="e.g. Milk" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
       </div>
-      <div className="form-group">
+      <div className="form-group inline-form-field-sm">
         <label>Qty</label>
         <input className="form-input" type="number" min="0" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
       </div>
-      <div className="form-group">
+      <div className="form-group inline-form-field-sm">
         <label>Unit</label>
         <select className="form-input" value={unit} onChange={(e) => setUnit(e.target.value)}>
           <option value="">None</option>
@@ -41,18 +43,42 @@ function ItemForm({ initial, submitLabel, onSubmit, onCancel }: ItemFormProps) {
           ))}
         </select>
       </div>
-      <button type="submit" className="btn btn-primary">{submitLabel}</button>
-      <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+      <div className="inline-form-actions">
+        <button type="submit" className="btn btn-primary btn-sm">{submitLabel}</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
     </form>
   );
 }
 
 export default function GroceryListPage() {
   const [lists, setLists] = useState<GroceryList[]>([]);
-  const [listName, setListName] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const perPage = 10;
   const [addingToList, setAddingToList] = useState<number | null>(null);
-  const [editing, setEditing] = useState<{ listId: number; item: GroceryItem } | null>(null);
+  const [editingListId, setEditingListId] = useState<number | null>(null);
+  const [draftListName, setDraftListName] = useState('');
   const [error, setError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newListName, setNewListName] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQuery(searchInput.trim().toLowerCase());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const filtered = useMemo(() => {
+    if (!debouncedQuery) return lists;
+    return lists.filter((l) => l.name.toLowerCase().includes(debouncedQuery));
+  }, [lists, debouncedQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
   useEffect(() => {
     groceryLists.list().then(setLists).catch(() => setError('Failed to load grocery lists'));
@@ -62,11 +88,24 @@ export default function GroceryListPage() {
     e.preventDefault();
     setError('');
     try {
-      const list = await groceryLists.create({ name: listName });
+      const list = await groceryLists.create({ name: newListName });
       setLists((prev) => [...prev, list]);
-      setListName('');
+      setNewListName('');
+      setShowCreate(false);
     } catch {
       setError('Failed to create list');
+    }
+  };
+
+  const handleRenameList = async (listId: number) => {
+    if (!draftListName.trim()) return;
+    setError('');
+    try {
+      const updated = await groceryLists.update(listId, { name: draftListName.trim() });
+      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, ...updated } : l)));
+      setEditingListId(null);
+    } catch {
+      setError('Failed to rename list');
     }
   };
 
@@ -118,7 +157,6 @@ export default function GroceryListPage() {
             : l
         )
       );
-      setEditing(null);
     } catch {
       setError('Failed to update item');
     }
@@ -145,89 +183,170 @@ export default function GroceryListPage() {
           <h1>Grocery Lists</h1>
           <span className="subtitle">{lists.length} list{lists.length !== 1 ? 's' : ''}</span>
         </div>
+        <div className="page-header-actions">
+          <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
+            <span className="btn-icon">+</span> New list
+          </button>
+        </div>
+      </div>
+
+      <div className="recipes-toolbar">
+        <div className="search-box">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.5" y2="16.5" />
+          </svg>
+          <input
+            className="form-input"
+            type="search"
+            placeholder="Search lists…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <form onSubmit={handleCreateList} className="stack-form">
-          <div className="form-group">
-            <label>New list name</label>
-            <input className="form-input" placeholder="e.g. Weekly groceries" value={listName} onChange={(e) => setListName(e.target.value)} required />
-          </div>
-          <button type="submit" className="btn btn-primary">Create</button>
-        </form>
-      </div>
-
-      {lists.length === 0 && (
-        <div className="empty-state">
-          <p>No grocery lists yet. Create one to get started.</p>
+      {showCreate && (
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <form onSubmit={handleCreateList} className="inline-form">
+            <div className="form-group inline-form-field-lg">
+              <label>List name</label>
+              <input className="form-input" placeholder="e.g. Weekly groceries" value={newListName} onChange={(e) => setNewListName(e.target.value)} required autoFocus />
+            </div>
+            <div className="inline-form-actions">
+              <button type="submit" className="btn btn-primary btn-sm">Create</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+            </div>
+          </form>
         </div>
       )}
 
-      {lists.map((list) => (
-        <div key={list.id} className="card" style={{ marginBottom: '1rem' }}>
-          <div className="grocery-list-header-row">
-            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>{list.name}</h3>
-            <span className={`tag ${list.source === 'ai_generated' ? 'tag-ai' : 'tag-manual'}`}>
-              {list.source === 'ai_generated' ? 'AI' : 'Manual'}
-            </span>
-            <span className="subtitle">{list.items.length} item{list.items.length !== 1 ? 's' : ''}</span>
-            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteList(list.id)}>Delete</button>
-          </div>
-
-          {list.items.length === 0 ? (
-            <div className="empty-inline">No items yet</div>
-          ) : (
-            <div className="item-list">
-              {list.items.map((item) => (
-                <div key={item.id} className="item-row">
-                  {editing && editing.listId === list.id && editing.item.id === item.id ? (
-                    <ItemForm
-                      initial={item}
-                      submitLabel="Save"
-                      onSubmit={(data) => handleUpdateItem(list.id, item.id, data)}
-                      onCancel={() => setEditing(null)}
-                    />
-                  ) : (
-                    <>
-                      <label className={`checkbox-label ${item.status === 'checked' ? 'checked' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={item.status === 'checked'}
-                          onChange={() => handleToggleItem(list.id, item)}
-                        />
-                        <span className="item-text">{item.name}</span>
-                      </label>
-                      {item.quantity != null && (
-                        <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
-                      )}
-                      {item.source === 'ai_suggested' && <span className="tag tag-ai">AI</span>}
-                      {item.status === 'pending' && <span className="tag tag-pending">Pending</span>}
-                      <div className="item-actions">
-                        <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ listId: list.id, item })}>Edit</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem(list.id, item.id)}>Delete</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ marginTop: '0.75rem' }}>
-            {addingToList === list.id ? (
-              <ItemForm
-                submitLabel="Add"
-                onSubmit={(data) => handleAddItem(list.id, data)}
-                onCancel={() => setAddingToList(null)}
-              />
-            ) : (
-              <button className="btn btn-secondary btn-sm" onClick={() => setAddingToList(list.id)}>Add item</button>
-            )}
-          </div>
+      {filtered.length === 0 && (
+        <div className="empty-state">
+          <p>
+            {debouncedQuery
+              ? `No lists match "${debouncedQuery}".`
+              : 'No grocery lists yet. Click "New list" to add your first one.'}
+          </p>
         </div>
-      ))}
+      )}
+
+      {paginated.map((list) => {
+        const expanded = addingToList === list.id;
+        const itemCount = list.items.length;
+        return (
+          <div key={list.id} className="card" style={{ marginBottom: '1rem' }}>
+            <div className="recipe-header">
+              <button
+                type="button"
+                className="accordion-toggle"
+                aria-expanded={expanded}
+                onClick={() => setAddingToList(expanded ? null : list.id)}
+              >
+                <span className={`accordion-arrow ${expanded ? 'open' : ''}`}>▸</span>
+              </button>
+              <div className="recipe-header-info" onClick={() => setAddingToList(expanded ? null : list.id)}>
+                <div className="recipe-name">{list.name}</div>
+                <div className="recipe-meta">
+                  {itemCount} item{itemCount !== 1 ? 's' : ''} · {list.source === 'ai_generated' ? 'AI' : 'Manual'}
+                </div>
+              </div>
+              <div className="recipe-header-actions">
+                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingListId(list.id); setDraftListName(list.name); }}>Edit</button>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteList(list.id)}>Delete</button>
+                <button className="btn btn-icon-only" onClick={() => { setEditingListId(list.id); setDraftListName(list.name); }} aria-label="Edit">✏️</button>
+                <button className="btn btn-icon-only" onClick={() => handleDeleteList(list.id)} aria-label="Delete">🗑️</button>
+              </div>
+            </div>
+
+            <div className={`recipe-body ${expanded ? 'open' : ''}`}>
+              <div>
+                {list.items.length === 0 ? (
+                  <div className="empty-inline">No items yet</div>
+                ) : (
+                  <div className="item-list">
+                    {list.items.map((item) => (
+                      <div key={item.id} className="item-row">
+                        <SwipeToReveal
+                          actions={
+                            <>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateItem(list.id, item.id, { name: item.name })}>Edit</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem(list.id, item.id)}>Delete</button>
+                            </>
+                          }
+                        >
+                          <label className={`checkbox-label ${item.status === 'checked' ? 'checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={item.status === 'checked'}
+                              onChange={() => handleToggleItem(list.id, item)}
+                            />
+                            <span className="item-text">{item.name}</span>
+                          </label>
+                          {item.quantity != null && (
+                            <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
+                          )}
+                          {item.source === 'ai_suggested' && <span className="tag tag-ai">AI</span>}
+                          {item.status === 'pending' && <span className="tag tag-pending">Pending</span>}
+                          <div className="item-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateItem(list.id, item.id, { name: item.name })}>Edit</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem(list.id, item.id)}>Delete</button>
+                          </div>
+                        </SwipeToReveal>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {expanded && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    {addingToList === list.id ? (
+                      <ItemForm
+                        submitLabel="Add"
+                        onSubmit={(data) => handleAddItem(list.id, data)}
+                        onCancel={() => setAddingToList(null)}
+                      />
+                    ) : (
+                      <button className="add-row-btn" onClick={() => setAddingToList(list.id)}>
+                        <span className="add-row-icon">+</span> Add item
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            ← Prev
+          </button>
+          <span className="pagination-info">
+            Page {page} of {totalPages}
+          </span>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next →
+          </button>
+        </div>
+      )}
+
+      {editingListId && (
+        <BottomSheet open={true} onClose={() => setEditingListId(null)} title="Rename list">
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label>List name</label>
+            <input className="form-input" value={draftListName} onChange={(e) => setDraftListName(e.target.value)} required autoFocus />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary" onClick={() => setEditingListId(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={() => handleRenameList(editingListId)} disabled={!draftListName.trim()}>Save</button>
+          </div>
+        </BottomSheet>
+      )}
     </div>
   );
 }

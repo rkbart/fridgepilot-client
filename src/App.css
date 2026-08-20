@@ -410,10 +410,12 @@ textarea.form-input {
   gap: 0.35rem;
   margin-left: auto;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transform: translateX(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 .item-row:hover .item-actions {
   opacity: 1;
+  transform: translateX(0);
 }
 
 /* ── Recipe accordion ─────────────────────────── */
@@ -783,6 +785,151 @@ textarea.form-input {
 .grocery-list-header-row h3 {
   flex: 1;
   min-width: 0;
+}
+
+/* ── Swipe to reveal ────────────────────────── */
+.swipe-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 0.5rem;
+  z-index: 1;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 2;
+  background: var(--white);
+}
+
+.swipe-content.swipe-transitioning {
+  transition: transform 0.25s ease;
+}
+
+/* ── Bottom sheet ───────────────────────────── */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: bottom-sheet-fade-in 0.2s ease;
+}
+
+.bottom-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 80dvh;
+  background: var(--white);
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: var(--shadow-lg);
+  animation: bottom-sheet-slide-up 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0.75rem auto 0;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-header h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.bottom-sheet-close {
+  background: none;
+  border: none;
+  color: var(--stone);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.bottom-sheet-body {
+  padding: 0.5rem 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+
+@keyframes bottom-sheet-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bottom-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* ── Compact recipe header icons ────────────── */
+.recipe-header-actions {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.recipe-header-actions .btn {
+  display: none;
+}
+
+.recipe-header-actions .btn-icon-only {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 769px) {
+  .recipe-header-actions .btn {
+    display: inline-flex;
+  }
+  .recipe-header-actions .btn-icon-only {
+    display: none;
+  }
+}
+
+/* ── Step row: number + text on same line ───── */
+.step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.step-row .step-number {
+  flex-shrink: 0;
+}
+
+.step-row .item-name {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 /* ── Responsive ──────────────────────────────── */
