@@ -16,9 +16,10 @@ interface EditModalProps {
   initial: object;
   onSubmit: (values: Record<string, unknown>) => Promise<void> | void;
   onCancel: () => void;
+  submitLabel?: string;
 }
 
-export default function EditModal({ title, fields, initial, onSubmit, onCancel }: EditModalProps) {
+export default function EditModal({ title, fields, initial, onSubmit, onCancel, submitLabel = 'Save' }: EditModalProps) {
   const [formData, setFormData] = useState<Record<string, unknown>>(() => {
     const values: Record<string, unknown> = {};
     const initialValues = initial as Record<string, unknown>;
@@ -84,7 +85,7 @@ export default function EditModal({ title, fields, initial, onSubmit, onCancel }
           ))}
           <div className="edit-modal-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : submitLabel}
             </button>
             <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
               Cancel

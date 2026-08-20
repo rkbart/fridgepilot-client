@@ -3,60 +3,41 @@ import { recipes, UNITS, type Recipe, type RecipeIngredient } from '../services/
 import ChevronActions from '../components/ChevronActions';
 import EditModal from '../components/EditModal';
 
-interface IngredientFormProps {
-  initial?: RecipeIngredient;
-  submitLabel: string;
-  onSubmit: (data: RecipeIngredient) => void;
-  onCancel: () => void;
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M11.3 2.3a1 1 0 0 1 1.4 0l1 1a1 1 0 0 1 0 1.4l-7 7-2.7.6.6-2.7 7-7Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
-function IngredientForm({ initial, submitLabel, onSubmit, onCancel }: IngredientFormProps) {
-  const [name, setName] = useState(initial?.name || '');
-  const [quantity, setQuantity] = useState(initial?.quantity != null ? String(initial.quantity) : '');
-  const [unit, setUnit] = useState(initial?.unit || '');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      name: name.trim(),
-      quantity: quantity ? Number(quantity) : undefined,
-      unit: unit || undefined,
-    });
-  };
-
+function TrashIcon() {
   return (
-    <form onSubmit={handleSubmit} className="inline-form">
-      <div className="form-group inline-form-field-lg">
-        <label>Ingredient</label>
-        <input className="form-input" placeholder="e.g. Spaghetti" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-      </div>
-      <div className="form-group inline-form-field-sm">
-        <label>Qty</label>
-        <input className="form-input" type="number" min="0" placeholder="200" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-      </div>
-      <div className="form-group inline-form-field-sm">
-        <label>Unit</label>
-        <select className="form-input" value={unit} onChange={(e) => setUnit(e.target.value)}>
-          <option value="">None</option>
-          {UNITS.map((u) => (
-            <option key={u} value={u}>{u}</option>
-          ))}
-        </select>
-      </div>
-      <div className="inline-form-actions">
-        <button type="submit" className="btn btn-primary btn-sm">{submitLabel}</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
-      </div>
-    </form>
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
 interface IngredientEditorProps {
   ingredients: RecipeIngredient[];
   onChange: (next: RecipeIngredient[]) => void;
+  hideTitle?: boolean;
 }
 
-function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
+function IngredientEditor({ ingredients, onChange, hideTitle }: IngredientEditorProps) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -71,22 +52,33 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
 
   return (
     <div className="recipe-section">
-      <div className="recipe-section-title-row">
-        <span className="recipe-section-title">
-          Ingredients
-          {ingredients.length > 0 && <span className="section-count">{ingredients.length}</span>}
-        </span>
-        {!adding && (
-          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
-            <span className="add-row-icon">+</span> Add ingredient
-          </button>
+      <div className={`recipe-section-title-row ${hideTitle ? 'detail-add-row' : ''}`}>
+        {!hideTitle && (
+          <span className="recipe-section-title">
+            Ingredients
+            {ingredients.length > 0 && <span className="section-count">{ingredients.length}</span>}
+          </span>
         )}
+        <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
+          <span className="add-row-icon">+</span> Add ingredient
+        </button>
       </div>
       {adding && (
-        <IngredientForm
+        <EditModal
+          title="Add ingredient"
           submitLabel="Add"
-          onSubmit={(data) => {
-            add(data);
+          fields={[
+            { key: 'name', label: 'Ingredient', required: true, autoFocus: true },
+            { key: 'quantity', label: 'Qty', type: 'number', placeholder: '200' },
+            { key: 'unit', label: 'Unit', type: 'select', options: UNITS },
+          ]}
+          initial={{}}
+          onSubmit={(values) => {
+            add({
+              name: String(values.name ?? '').trim(),
+              quantity: values.quantity ? Number(values.quantity) : undefined,
+              unit: String(values.unit ?? '').trim() || undefined,
+            });
             setAdding(false);
           }}
           onCancel={() => setAdding(false)}
@@ -108,10 +100,12 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
                 </>
               }
             >
-              <span className="item-name">{ing.name}</span>
-              {ing.quantity != null && (
-                <span className="item-meta">{ing.quantity}{ing.unit ? ` ${ing.unit}` : ''}</span>
-              )}
+              <div className="recipe-row">
+                <span className="item-name">{ing.name}</span>
+                {ing.quantity != null && (
+                  <span className="item-meta">{ing.quantity}{ing.unit ? ` ${ing.unit}` : ''}</span>
+                )}
+              </div>
             </ChevronActions>
           ))}
         </div>
@@ -141,41 +135,13 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
   );
 }
 
-interface StepFormProps {
-  initial?: string;
-  submitLabel: string;
-  onSubmit: (text: string) => void;
-  onCancel: () => void;
-}
-
-function StepForm({ initial, submitLabel, onSubmit, onCancel }: StepFormProps) {
-  const [text, setText] = useState(initial || '');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(text.trim());
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="inline-form">
-      <div className="form-group inline-form-field-lg">
-        <label>Step</label>
-        <input className="form-input" placeholder="Describe this step..." value={text} onChange={(e) => setText(e.target.value)} required autoFocus />
-      </div>
-      <div className="inline-form-actions">
-        <button type="submit" className="btn btn-primary btn-sm">{submitLabel}</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
-      </div>
-    </form>
-  );
-}
-
 interface StepEditorProps {
   steps: string[];
   onChange: (next: string[]) => void;
+  hideTitle?: boolean;
 }
 
-function StepEditor({ steps, onChange }: StepEditorProps) {
+function StepEditor({ steps, onChange, hideTitle }: StepEditorProps) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -190,22 +156,25 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
 
   return (
     <div className="recipe-section">
-      <div className="recipe-section-title-row">
-        <span className="recipe-section-title">
-          Procedure
-          {steps.length > 0 && <span className="section-count">{steps.length}</span>}
-        </span>
-        {!adding && (
-          <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
-            <span className="add-row-icon">+</span> Add step
-          </button>
+      <div className={`recipe-section-title-row ${hideTitle ? 'detail-add-row' : ''}`}>
+        {!hideTitle && (
+          <span className="recipe-section-title">
+            Procedure
+            {steps.length > 0 && <span className="section-count">{steps.length}</span>}
+          </span>
         )}
+        <button type="button" className="add-row-btn" onClick={() => setAdding(true)}>
+          <span className="add-row-icon">+</span> Add step
+        </button>
       </div>
       {adding && (
-        <StepForm
+        <EditModal
+          title="Add step"
           submitLabel="Add"
-          onSubmit={(text) => {
-            add(text);
+          fields={[{ key: 'text', label: 'Step', required: true, autoFocus: true }]}
+          initial={{}}
+          onSubmit={(values) => {
+            add(String(values.text ?? '').trim());
             setAdding(false);
           }}
           onCancel={() => setAdding(false)}
@@ -227,7 +196,7 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
                 </>
               }
             >
-              <div className="step-row">
+              <div className="recipe-row">
                 <span className="step-number">{idx + 1}.</span>
                 <span className="item-name">{step}</span>
               </div>
@@ -331,6 +300,142 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
   );
 }
 
+interface ConfirmDeleteModalProps {
+  recipeName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmDeleteModal({ recipeName, onConfirm, onCancel }: ConfirmDeleteModalProps) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Delete recipe"
+        style={{ maxWidth: 420 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>Delete recipe?</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>×</button>
+        </div>
+        <div className="modal-body">
+          <p className="confirm-delete-text">
+            “{recipeName}” and all its ingredients and steps will be permanently removed. This can’t be undone.
+          </p>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn btn-danger" onClick={onConfirm}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface RecipeCardProps {
+  recipe: Recipe;
+  expanded: boolean;
+  onToggle: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+  onIngredientsChange: (ingredients: RecipeIngredient[]) => void;
+  onStepsChange: (steps: string[]) => void;
+}
+
+function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredientsChange, onStepsChange }: RecipeCardProps) {
+  const [tab, setTab] = useState<'ingredients' | 'steps'>('ingredients');
+  const ingCount = (recipe.ingredients || []).length;
+  const stepCount = (recipe.instructions || []).length;
+
+  return (
+    <div className="card">
+      <div className="recipe-header" onClick={onToggle}>
+        <div className="recipe-header-info">
+          <div className="recipe-title-row">
+            <span className="recipe-name">{recipe.name}</span>
+            <button
+              type="button"
+              className="detail-icon-btn"
+              aria-label="Rename recipe"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRename();
+              }}
+            >
+              <PencilIcon />
+            </button>
+          </div>
+          <div className="recipe-meta">
+            {ingCount} ingredient{ingCount !== 1 ? 's' : ''} · {stepCount} step{stepCount !== 1 ? 's' : ''}
+          </div>
+        </div>
+        <div className="recipe-header-actions">
+          {expanded && (
+            <button
+              type="button"
+              className="detail-icon-btn detail-icon-danger"
+              aria-label="Delete recipe"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <TrashIcon />
+            </button>
+          )}
+          <button
+            type="button"
+            className={`chevron-btn detail-chevron ${expanded ? 'open' : ''}`}
+            aria-label={expanded ? 'Collapse recipe' : 'Expand recipe'}
+            aria-expanded={expanded}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className={`recipe-body ${expanded ? 'open' : ''}`}>
+        <div>
+          <div className="detail-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'ingredients'}
+              className={tab === 'ingredients' ? 'active' : ''}
+              onClick={() => setTab('ingredients')}
+            >
+              Ingredients
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'steps'}
+              className={tab === 'steps' ? 'active' : ''}
+              onClick={() => setTab('steps')}
+            >
+              Procedure
+            </button>
+          </div>
+          {tab === 'ingredients' ? (
+            <IngredientEditor hideTitle ingredients={recipe.ingredients || []} onChange={onIngredientsChange} />
+          ) : (
+            <StepEditor hideTitle steps={recipe.instructions || []} onChange={onStepsChange} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Recipes() {
   const [list, setList] = useState<Recipe[]>([]);
   const [total, setTotal] = useState(0);
@@ -339,11 +444,12 @@ export default function Recipes() {
   const [query, setQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [openKey, setOpenKey] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<Recipe | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<Recipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingScrollId = useRef<number | null>(null);
 
@@ -354,22 +460,6 @@ export default function Recipes() {
     }, 250);
     return () => clearTimeout(t);
   }, [searchInput]);
-
-  useEffect(() => {
-    if (expandedId == null) return;
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      const el = document.getElementById(`recipe-${expandedId}`);
-      if (el && !el.contains(e.target as Node)) {
-        setExpandedId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [expandedId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -394,7 +484,7 @@ export default function Recipes() {
     return () => {
       cancelled = true;
     };
-  }, [query, page, perPage]);
+  }, [query, page, perPage, reloadKey]);
 
   useEffect(() => {
     return () => {
@@ -408,17 +498,18 @@ export default function Recipes() {
   };
 
   const handleCreated = (recipe: Recipe) => {
-    pendingScrollId.current = recipe.id;
     setShowCreate(false);
     setSearchInput('');
     setQuery('');
     setPage(1);
+    setReloadKey((k) => k + 1);
+    pendingScrollId.current = recipe.id;
     setSuccess('Recipe saved');
     if (successTimer.current) clearTimeout(successTimer.current);
     successTimer.current = setTimeout(() => setSuccess(''), 3000);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteRecipe = async (id: number) => {
     setError('');
     try {
       await recipes.delete(id);
@@ -428,6 +519,7 @@ export default function Recipes() {
       if (remaining.length === 0 && page > 1) setPage(page - 1);
       setExpandedId((cur) => (cur === id ? null : cur));
       setRenaming((cur) => (cur?.id === id ? null : cur));
+      setConfirmingDelete((cur) => (cur?.id === id ? null : cur));
     } catch {
       setError('Failed to delete recipe');
     }
@@ -479,50 +571,18 @@ export default function Recipes() {
           </div>
         )}
 
-        {list.map((recipe) => {
-          const expanded = expandedId === recipe.id;
-          const ingCount = (recipe.ingredients || []).length;
-          const stepCount = (recipe.instructions || []).length;
-          return (
-            <div key={recipe.id} id={`recipe-${recipe.id}`} className="card">
-              <ChevronActions
-                isOpen={openKey === `recipe-${recipe.id}`}
-                onToggle={() => setOpenKey((cur) => (cur === `recipe-${recipe.id}` ? null : `recipe-${recipe.id}`))}
-                actions={
-                  <>
-                    <button className="action-edit-btn" onClick={() => setRenaming(recipe)}>Edit</button>
-                    <button className="action-delete-btn" onClick={() => handleDelete(recipe.id)}>Delete</button>
-                  </>
-                }
-              >
-                <button
-                  type="button"
-                  className="recipe-header-info"
-                  aria-expanded={expanded}
-                  onClick={() => setExpandedId(expanded ? null : recipe.id)}
-                >
-                  <div className="recipe-name">{recipe.name}</div>
-                  <div className="recipe-meta">
-                    {ingCount} ingredient{ingCount !== 1 ? 's' : ''} · {stepCount} step{stepCount !== 1 ? 's' : ''}
-                  </div>
-                </button>
-              </ChevronActions>
-
-              <div className={`recipe-body ${expanded ? 'open' : ''}`}>
-                <div>
-                  <IngredientEditor
-                    ingredients={recipe.ingredients || []}
-                    onChange={(next) => updateRecipe(recipe.id, { ingredients: next })}
-                  />
-                  <StepEditor
-                    steps={recipe.instructions || []}
-                    onChange={(next) => updateRecipe(recipe.id, { instructions: next })}
-                  />
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {list.map((recipe) => (
+          <RecipeCard
+            key={recipe.id}
+            recipe={recipe}
+            expanded={expandedId === recipe.id}
+            onToggle={() => setExpandedId((cur) => (cur === recipe.id ? null : recipe.id))}
+            onRename={() => setRenaming(recipe)}
+            onDelete={() => setConfirmingDelete(recipe)}
+            onIngredientsChange={(ingredients) => updateRecipe(recipe.id, { ingredients })}
+            onStepsChange={(steps) => updateRecipe(recipe.id, { instructions: steps })}
+          />
+        ))}
       </div>
 
       {totalPages > 1 && (
@@ -551,6 +611,17 @@ export default function Recipes() {
             setRenaming(null);
           }}
           onCancel={() => setRenaming(null)}
+        />
+      )}
+
+      {confirmingDelete && (
+        <ConfirmDeleteModal
+          recipeName={confirmingDelete.name}
+          onConfirm={() => {
+            handleDeleteRecipe(confirmingDelete.id);
+            setConfirmingDelete(null);
+          }}
+          onCancel={() => setConfirmingDelete(null)}
         />
       )}
 
