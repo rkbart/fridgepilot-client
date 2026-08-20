@@ -51,6 +51,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401 && !path.includes('/users/')) {
+      clearToken();
+      window.location.href = '/login';
+    }
     const body = await res.json().catch(() => ({ errors: ['Request failed'] }));
     throw { status: res.status, ...body };
   }
@@ -184,6 +188,8 @@ export const groceryLists = {
   get: (id: number) => request<GroceryList>(`/api/v1/grocery_lists/${id}`),
   create: (data: { name: string; source?: string }) =>
     request<GroceryList>('/api/v1/grocery_lists', { method: 'POST', body: JSON.stringify({ grocery_list: data }) }),
+  update: (id: number, data: { name: string }) =>
+    request<GroceryList>(`/api/v1/grocery_lists/${id}`, { method: 'PATCH', body: JSON.stringify({ grocery_list: data }) }),
   delete: (id: number) => request<void>(`/api/v1/grocery_lists/${id}`, { method: 'DELETE' }),
   addItem: (listId: number, data: { name: string; quantity?: number; unit?: string; recipe_id?: number }) =>
     request<GroceryItem>(`/api/v1/grocery_lists/${listId}/items`, { method: 'POST', body: JSON.stringify({ grocery_item: data }) }),

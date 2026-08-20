@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { recipes, UNITS, type Recipe, type RecipeIngredient } from '../services/api';
+import SwipeToReveal from '../components/SwipeToReveal';
 
 interface IngredientFormProps {
   initial?: RecipeIngredient;
@@ -106,7 +107,14 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
                   onCancel={() => setEditing(null)}
                 />
               ) : (
-                <>
+                <SwipeToReveal
+                  actions={
+                    <>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
+                    </>
+                  }
+                >
                   <span className="item-name">{ing.name}</span>
                   {ing.quantity != null && (
                     <span className="item-meta">{ing.quantity}{ing.unit ? ` ${ing.unit}` : ''}</span>
@@ -115,7 +123,7 @@ function IngredientEditor({ ingredients, onChange }: IngredientEditorProps) {
                     <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
                     <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
                   </div>
-                </>
+                </SwipeToReveal>
               )}
             </div>
           ))}
@@ -211,14 +219,23 @@ function StepEditor({ steps, onChange }: StepEditorProps) {
                   onCancel={() => setEditing(null)}
                 />
               ) : (
-                <>
-                  <span className="step-number">{idx + 1}.</span>
-                  <span className="item-name">{step}</span>
+                <SwipeToReveal
+                  actions={
+                    <>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
+                    </>
+                  }
+                >
+                  <div className="step-row">
+                    <span className="step-number">{idx + 1}.</span>
+                    <span className="item-name">{step}</span>
+                  </div>
                   <div className="item-actions">
                     <button className="btn btn-secondary btn-sm" onClick={() => setEditing(idx)}>Edit</button>
                     <button className="btn btn-danger btn-sm" onClick={() => remove(idx)}>Delete</button>
                   </div>
-                </>
+                </SwipeToReveal>
               )}
             </div>
           ))}
@@ -500,8 +517,12 @@ export default function Recipes() {
                     </div>
                   </div>
                 )}
-                <button className="btn btn-secondary btn-sm" onClick={() => startRename(recipe)}>Edit</button>
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(recipe.id)}>Delete</button>
+                <div className="recipe-header-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => startRename(recipe)}>Edit</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(recipe.id)}>Delete</button>
+                  <button className="btn btn-icon-only" onClick={() => startRename(recipe)} aria-label="Edit">✏️</button>
+                  <button className="btn btn-icon-only" onClick={() => handleDelete(recipe.id)} aria-label="Delete">🗑️</button>
+                </div>
               </div>
 
               <div className={`recipe-body ${expanded ? 'open' : ''}`}>
