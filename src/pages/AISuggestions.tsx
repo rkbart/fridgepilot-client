@@ -25,8 +25,10 @@ export default function AISuggestions() {
   return (
     <div>
       <div className="page-header">
-        <h1>AI Helper</h1>
-        <span className="subtitle">Recipe ideas from your pantry</span>
+        <div className="page-header-title">
+          <h1>AI Helper</h1>
+          <span className="subtitle">Recipe ideas from your pantry</span>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
