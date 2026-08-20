@@ -95,6 +95,7 @@
   margin-left: 240px;
   padding: 2rem 3rem;
   max-width: 900px;
+  min-width: 0;
 }
 
 /* ── Page header ─────────────────────────────── */
@@ -161,6 +162,8 @@
   border-radius: var(--radius);
   padding: 1.25rem;
   transition: box-shadow 0.2s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 .card:hover {
   box-shadow: var(--shadow-sm);
@@ -383,6 +386,7 @@ textarea.form-input {
   padding: 0.4rem 0.75rem;
   border-radius: var(--radius-sm);
   transition: background 0.1s ease;
+  min-width: 0;
 }
 .item-row:hover {
   background: var(--linen-warm);
@@ -859,12 +863,130 @@ textarea.form-input {
     flex-wrap: wrap;
   }
 
-  .grocery-list-header {
+  .recipe-header .btn-secondary,
+  .recipe-header .btn-danger {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .grocery-list-header-row {
     flex-wrap: wrap;
+  }
+
+  .item-row {
+    flex-wrap: wrap;
+  }
+
+  .item-row .item-name {
+    flex: 1 1 auto;
+  }
+
+  .item-row .item-actions {
+    opacity: 1;
   }
 }
 
 @media (max-width: 480px) {
+  .main-content {
+    padding: 1rem 0.75rem;
+    padding-bottom: 5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .btn {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .btn-sm {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .form-input {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.9rem;
+  }
+
+  .item-row {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    padding: 0.5rem 0.5rem;
+  }
+
+  .item-row .item-name {
+    flex: 1 1 100%;
+    font-size: 0.9rem;
+  }
+
+  .item-row .item-meta {
+    font-size: 0.8rem;
+  }
+
+  .item-row .item-actions {
+    opacity: 1;
+    margin-left: auto;
+  }
+
+  .recipe-header {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .recipe-header-info {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .recipe-name {
+    font-size: 1rem;
+  }
+
+  .recipe-header .btn-secondary,
+  .recipe-header .btn-danger {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .recipe-name-edit {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .recipe-name-edit input {
+    flex: 1 1 100%;
+  }
+
+  .recipe-name-edit .btn {
+    flex: 1;
+  }
+
+  .recipe-section-title-row {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .grocery-list-header-row {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .grocery-list-header-row h3 {
+    flex: 1 1 100%;
+    font-size: 1rem;
+  }
+
+  .grocery-list-header-row .btn-danger {
+    flex: 1;
+  }
+
+  .grocery-list-header-row .subtitle {
+    width: auto;
+  }
+
   .inline-form {
     flex-wrap: wrap;
   }
@@ -888,15 +1010,6 @@ textarea.form-input {
 
   .stack-form .btn {
     flex: 1 1 100%;
-  }
-
-  .grocery-list-header-row {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .grocery-list-header-row .subtitle {
-    width: 100%;
   }
 
   .modal {
@@ -924,5 +1037,31 @@ textarea.form-input {
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .pagination {
+    gap: 0.5rem;
+  }
+
+  .pagination .btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .score-bar {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .score-bar .score-fill {
+    max-width: 80px;
+  }
+
+  .checkbox-label {
+    gap: 0.4rem;
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
   }
 }
