@@ -306,6 +306,10 @@
   box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
 }
 
+select.form-input {
+  padding-right: 2rem;
+}
+
 textarea.form-input {
   resize: vertical;
   min-height: 80px;
@@ -555,22 +559,43 @@ textarea.form-input {
   }
 }
 
+.recipe-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
 .recipe-header-info {
   flex: 1;
   min-width: 0;
-  border: none;
-  background: none;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.recipe-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.recipe-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
 }
 
 .recipe-name {
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .recipe-meta {
@@ -593,6 +618,10 @@ textarea.form-input {
 .recipe-body.open {
   grid-template-rows: 1fr;
   opacity: 1;
+}
+
+.recipe-body .recipe-section {
+  margin-top: 0;
 }
 
 .recipe-section {
@@ -626,6 +655,96 @@ textarea.form-input {
   color: var(--stone);
   font-size: 0.85rem;
   padding: 0.25rem 0;
+}
+
+/* ── Recipe detail ───────────────────────────── */
+.recipe-header .chevron-btn.detail-chevron.open svg {
+  transform: rotate(90deg);
+}
+
+.detail-icon-btn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--stone);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.detail-icon-btn:hover {
+  background: var(--linen-warm);
+  color: var(--charcoal);
+}
+.detail-icon-danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.detail-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--linen-warm);
+  border-radius: 10px;
+  padding: 3px;
+  margin: 0.9rem 0 1rem;
+}
+.detail-tabs button {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--stone);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.detail-tabs button:hover {
+  color: var(--charcoal);
+}
+.detail-tabs button.active {
+  background: var(--white);
+  color: var(--charcoal);
+  box-shadow: var(--shadow-sm);
+}
+
+.recipe-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+.recipe-row .item-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+.recipe-row .item-meta {
+  flex-shrink: 0;
+  color: var(--stone);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+.recipe-row .step-number {
+  width: auto;
+  text-align: left;
+  margin-right: 0.35rem;
+}
+
+.detail-add-row {
+  justify-content: flex-end;
+}
+
+.confirm-delete-text {
+  color: var(--stone);
+  font-size: 0.9rem;
 }
 
 /* ── Checkboxes ──────────────────────────────── */
@@ -880,24 +999,6 @@ textarea.form-input {
 .grocery-list-header-row h3 {
   flex: 1;
   min-width: 0;
-}
-
-/* ── Compact recipe header icons ────────────── */
-.step-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.step-row .step-number {
-  flex-shrink: 0;
-}
-
-.step-row .item-name {
-  flex: 1;
-  min-width: 0;
-  word-break: break-word;
 }
 
 /* ── Responsive ──────────────────────────────── */
