@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { pantry, UNITS, type PantryItem } from '../services/api';
 import ChevronActions from '../components/ChevronActions';
 import EditModal from '../components/EditModal';
@@ -43,7 +43,16 @@ export default function Pantry() {
   const [addingItem, setAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [flashCat, setFlashCat] = useState<string | null>(null);
+  const [showTopBtn, setShowTopBtn] = useState(false);
   const [error, setError] = useState('');
+
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const chipBarRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const collapseTimers = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -54,6 +63,22 @@ export default function Pantry() {
 
   useEffect(() => {
     pantry.list().then(setList).catch(() => setError('Failed to load pantry'));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      Object.values(collapseTimers.current).forEach((t) => {
+        if (t) clearTimeout(t);
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setShowTopBtn(window.scrollY > 300);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const filtered = useMemo(() => {
@@ -69,6 +94,10 @@ export default function Pantry() {
     }
     return map;
   }, [filtered]);
+
+  const visibleCategories = useMemo(() => Object.keys(grouped), [grouped]);
+
+  const allExpanded = visibleCategories.length > 0 && visibleCategories.every((cat) => !collapsed[cat]);
 
   const handleCreate = async (values: { name: string; quantity?: number; unit?: string; category?: string }) => {
     setError('');
@@ -103,7 +132,65 @@ export default function Pantry() {
     }
   };
 
-  const toggleCollapsed = (cat: string) => setCollapsed((c) => ({ ...c, [cat]: !c[cat] }));
+  const toggleCollapsed = (cat: string) => {
+    if (collapseTimers.current[cat]) {
+      clearTimeout(collapseTimers.current[cat]);
+      collapseTimers.current[cat] = null;
+    }
+    setActiveCat(cat);
+    setCollapsed((c) => ({ ...c, [cat]: !c[cat] }));
+  };
+
+  const jumpTo = (cat: string) => {
+    setActiveCat(cat);
+    setCollapsed((c) => (c[cat] ? { ...c, [cat]: false } : c));
+
+    const chip = chipRefs.current[cat];
+    const bar = chipBarRef.current;
+    if (chip && bar) {
+      const left = chip.offsetLeft - (bar.clientWidth - chip.clientWidth) / 2;
+      bar.scrollTo({ left, behavior: 'smooth' });
+    }
+
+    setFlashCat(null);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setFlashCat(cat);
+        sectionRefs.current[cat]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlashCat(null), 1200);
+  };
+
+  const toggleAll = () => {
+    Object.values(collapseTimers.current).forEach((t) => {
+      if (t) clearTimeout(t);
+    });
+    collapseTimers.current = {};
+    const expand = !allExpanded;
+    setActiveCat(null);
+    setFlashCat(null);
+    if (expand) {
+      setCollapsed((c) => {
+        const next = { ...c };
+        for (const cat of visibleCategories) delete next[cat];
+        return next;
+      });
+    } else {
+      [...visibleCategories].reverse().forEach((cat, i) => {
+        collapseTimers.current[cat] = setTimeout(() => {
+          collapseTimers.current[cat] = null;
+          setCollapsed((c) => {
+            if (c[cat]) return c;
+            return { ...c, [cat]: true };
+          });
+        }, i * 60);
+      });
+    }
+  };
+
+  const backToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
     <div>
@@ -137,6 +224,45 @@ export default function Pantry() {
 
       {error && <div className="error-msg">{error}</div>}
 
+      {filtered.length > 0 && (
+        <div className="pantry-chips-wrap">
+          <div className="pantry-chips" ref={chipBarRef} role="group" aria-label="Jump to category">
+            <button
+              type="button"
+              className={`pantry-chip pantry-chip-toggle ${activeCat == null ? 'active' : ''}`}
+              aria-expanded={allExpanded}
+              aria-label={allExpanded ? 'Collapse all categories' : 'Expand all categories'}
+              onClick={toggleAll}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 16 16"
+                fill="none"
+                style={{
+                  transform: allExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease-out',
+                }}
+              >
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {allExpanded ? 'collapse all' : 'show all'}
+            </button>
+            {visibleCategories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                ref={(el) => { chipRefs.current[cat] = el; }}
+                className={`pantry-chip ${activeCat === cat ? 'active' : ''}`}
+                onClick={() => jumpTo(cat)}
+              >
+                {cat} <span className="pantry-chip-count">{grouped[cat].length}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="empty-state">
           <p>
@@ -146,11 +272,15 @@ export default function Pantry() {
           </p>
         </div>
       ) : (
-        <div className="card-grid">
+        <div className="card-grid pantry-grid">
           {Object.entries(grouped).map(([cat, items]) => {
             const isCollapsed = !!collapsed[cat];
             return (
-              <div key={cat}>
+              <div
+                key={cat}
+                ref={(el) => { sectionRefs.current[cat] = el; }}
+                className={`pantry-section ${flashCat === cat ? 'pantry-section-flash' : ''}`}
+              >
                 <button
                   type="button"
                   className="pantry-category-header"
@@ -162,28 +292,30 @@ export default function Pantry() {
                     {cat} <span className="section-count">{items.length}</span>
                   </span>
                 </button>
-                {!isCollapsed && (
-                  <div className="card">
-                    {items.map((item) => (
-                      <ChevronActions
-                        key={item.id}
-                        isOpen={openId === item.id}
-                        onToggle={() => setOpenId((cur) => (cur === item.id ? null : item.id))}
-                        actions={
-                          <>
-                            <button className="action-edit-btn" onClick={() => setEditingItem(item)}>Edit</button>
-                            <button className="action-delete-btn" onClick={() => handleDelete(item.id)}>Delete</button>
-                          </>
-                        }
-                      >
-                        <span className="item-name">{item.name}</span>
-                        {item.quantity != null && (
-                          <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
-                        )}
-                      </ChevronActions>
-                    ))}
+                <div className={`pantry-category-body ${isCollapsed ? '' : 'open'}`}>
+                  <div className="pantry-category-body-inner">
+                    <div className="card">
+                      {items.map((item) => (
+                        <ChevronActions
+                          key={item.id}
+                          isOpen={openId === item.id}
+                          onToggle={() => setOpenId((cur) => (cur === item.id ? null : item.id))}
+                          actions={
+                            <>
+                              <button className="action-edit-btn" onClick={() => setEditingItem(item)}>Edit</button>
+                              <button className="action-delete-btn" onClick={() => handleDelete(item.id)}>Delete</button>
+                            </>
+                          }
+                        >
+                          <span className="item-name">{item.name}</span>
+                          {item.quantity != null && (
+                            <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
+                          )}
+                        </ChevronActions>
+                      ))}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -233,6 +365,14 @@ export default function Pantry() {
           }
           onCancel={() => setEditingItem(null)}
         />
+      )}
+
+      {showTopBtn && (
+        <button type="button" className="back-to-top" aria-label="Back to top" onClick={backToTop}>
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+            <path d="M12 10l-4-4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       )}
     </div>
   );
