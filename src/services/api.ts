@@ -229,3 +229,44 @@ export const settings = {
   update: (data: { ai_api_key?: string; ai_api_endpoint?: string }) =>
     request<{ data: { message: string } }>('/api/v1/settings', { method: 'PUT', body: JSON.stringify({ settings: data }) }),
 };
+
+// Recipe Discovery
+export interface DiscoverIngredient {
+  name: string;
+  measure: string;
+  available: boolean;
+}
+
+export interface DiscoverRecipe {
+  id: string;
+  name: string;
+  image_url: string | null;
+  category: string | null;
+  area: string | null;
+  instructions: string | null;
+  youtube_url: string | null;
+  tags: string[] | null;
+  match_pct: number;
+  total_ingredients: number;
+  available_count: number;
+  ingredients: DiscoverIngredient[];
+  available: string[];
+  missing: string[];
+}
+
+export interface DiscoverResult {
+  recipes: DiscoverRecipe[];
+  meta: {
+    total_searched: number;
+    returned: number;
+    query_ingredients: string[];
+  };
+}
+
+export const discover = {
+  search: (ingredients: string[]): Promise<DiscoverResult> =>
+    request<DiscoverResult>('/api/v1/discover', {
+      method: 'POST',
+      body: JSON.stringify({ ingredients }),
+    }),
+};

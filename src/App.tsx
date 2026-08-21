@@ -6,6 +6,7 @@ import Recipes from './pages/Recipes';
 import Pantry from './pages/Pantry';
 import GroceryListPage from './pages/GroceryList';
 import AISuggestions from './pages/AISuggestions';
+import Discover from './pages/Discover';
 import SettingsPage from './pages/Settings';
 import { isAuthenticated, logout } from './services/api';
 import { useState } from 'react';
@@ -14,6 +15,7 @@ import './App.css';
 const NAV_ITEMS = [
   { path: '/recipes', label: 'Recipes', icon: '📄' },
   { path: '/pantry', label: 'Pantry', icon: '🥫' },
+  { path: '/discover', label: 'Discover', icon: '🔍' },
   { path: '/grocery-lists', label: 'Groceries', icon: '🛒' },
   { path: '/ai-suggestions', label: 'AI Helper', icon: '✨' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
@@ -97,6 +99,7 @@ function AppRoutes() {
           <Routes>
             <Route path="/recipes" element={<Recipes />} />
             <Route path="/pantry" element={<Pantry />} />
+            <Route path="/discover" element={<Discover />} />
             <Route path="/grocery-lists" element={<GroceryListPage />} />
             <Route path="/ai-suggestions" element={<AISuggestions />} />
             <Route path="/settings" element={<SettingsPage />} />
