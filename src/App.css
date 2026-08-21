@@ -409,6 +409,34 @@ textarea.form-input {
   font-family: var(--font-mono);
 }
 
+.grocery-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.grocery-add-row .item-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+.grocery-add-fields {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.form-input-sm {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  width: 4.5rem;
+}
+select.form-input-sm {
+  width: 5.5rem;
+}
+
 /* ── Chevron reveal actions ──────────────────── */
 .chevron-row {
   border-bottom: 1px solid var(--border-light);

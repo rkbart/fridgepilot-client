@@ -4,6 +4,7 @@ import {
   pantry,
   groceryLists,
   discover,
+  UNITS,
   type PantryItem,
   type GroceryList,
   type DiscoverRecipe,
@@ -109,7 +110,10 @@ export default function Discover() {
     setAddingToGrocery(recipe);
   };
 
-  const handleAddToGrocery = async (missing: string[], options: { listId?: number; newListName?: string }) => {
+  const handleAddToGrocery = async (
+    items: { name: string; quantity?: number; unit?: string }[],
+    options: { listId?: number; newListName?: string }
+  ) => {
     if (!addingToGrocery) return;
     try {
       let listId = options.listId;
@@ -125,12 +129,16 @@ export default function Discover() {
       }
 
       if (listId) {
-        for (const name of missing) {
-          await groceryLists.addItem(listId, { name });
+        for (const item of items) {
+          await groceryLists.addItem(listId, {
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+          });
         }
       }
 
-      setAddSuccess(`${missing.length} ingredient${missing.length !== 1 ? 's' : ''} added to ${listName}`);
+      setAddSuccess(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
       setAddingToGrocery(null);
       setTimeout(() => setAddSuccess(''), 3000);
     } catch {
@@ -437,6 +445,12 @@ function RecipeDetailModal({
   );
 }
 
+interface GroceryItemDraft {
+  name: string;
+  quantity: number | undefined;
+  unit: string | undefined;
+}
+
 function AddToGroceryModal({
   recipe,
   lists,
@@ -445,12 +459,39 @@ function AddToGroceryModal({
 }: {
   recipe: DiscoverRecipe;
   lists: GroceryList[];
-  onSelect: (missing: string[], options: { listId?: number; newListName?: string }) => void;
+  onSelect: (items: GroceryItemDraft[], options: { listId?: number; newListName?: string }) => void;
   onCancel: () => void;
 }) {
   const [mode, setMode] = useState<'existing' | 'new'>(lists.length === 0 ? 'new' : 'existing');
   const [selectedListId, setSelectedListId] = useState<number | null>(lists.length > 0 ? lists[0].id : null);
   const [newListName, setNewListName] = useState(recipe.name);
+
+  const ingredientByName = useMemo(() => {
+    const map = new Map<string, DiscoverIngredient>();
+    for (const ing of recipe.ingredients) map.set(ing.name.toLowerCase(), ing);
+    return map;
+  }, [recipe.ingredients]);
+
+  const [items, setItems] = useState<GroceryItemDraft[]>(() =>
+    recipe.missing.map((name) => {
+      const ing = ingredientByName.get(name.toLowerCase());
+      const parsed = ing?.measure ? parseMeasure(ing.measure) : { quantity: undefined, unit: undefined };
+      return { name, quantity: parsed.quantity, unit: parsed.unit };
+    })
+  );
+
+  const updateItem = (index: number, field: 'quantity' | 'unit', value: string) => {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [field]: field === 'quantity' ? (value === '' ? undefined : Number(value) || undefined) : value || undefined,
+            }
+          : item
+      )
+    );
+  };
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -461,12 +502,33 @@ function AddToGroceryModal({
         </div>
         <div className="modal-body">
           <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
-            Add {recipe.missing.length} missing ingredient{recipe.missing.length !== 1 ? 's' : ''} from "{recipe.name}":
+            Add {items.length} missing ingredient{items.length !== 1 ? 's' : ''} from "{recipe.name}":
           </p>
           <div className="item-list" style={{ marginBottom: '1rem' }}>
-            {recipe.missing.map((name) => (
-              <div key={name} className="item-row">
-                <span className="item-name">{name}</span>
+            {items.map((item, idx) => (
+              <div key={item.name} className="grocery-add-row">
+                <span className="item-name">{item.name}</span>
+                <div className="grocery-add-fields">
+                  <input
+                    type="number"
+                    className="form-input form-input-sm"
+                    placeholder="Qty"
+                    min="0"
+                    step="any"
+                    value={item.quantity ?? ''}
+                    onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                  />
+                  <select
+                    className="form-input form-input-sm"
+                    value={item.unit ?? ''}
+                    onChange={(e) => updateItem(idx, 'unit', e.target.value)}
+                  >
+                    <option value="">Unit</option>
+                    {UNITS.map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ))}
           </div>
@@ -525,9 +587,9 @@ function AddToGroceryModal({
             onClick={() => {
               if (mode === 'new') {
                 const trimmed = newListName.trim();
-                if (trimmed) onSelect(recipe.missing, { newListName: trimmed });
+                if (trimmed) onSelect(items, { newListName: trimmed });
               } else if (selectedListId) {
-                onSelect(recipe.missing, { listId: selectedListId });
+                onSelect(items, { listId: selectedListId });
               }
             }}
           >
@@ -538,6 +600,20 @@ function AddToGroceryModal({
       </div>
     </div>
   );
+}
+
+function parseMeasure(measure: string): { quantity: number | undefined; unit: string | undefined } {
+  const trimmed = measure.trim();
+  if (!trimmed) return { quantity: undefined, unit: undefined };
+  const m = trimmed.match(/^([\d./]+(?:\s*[-–]\s*[\d./]+)?)\s+(.+)$/);
+  if (m) {
+    const qtyPart = m[1].split(/\s*[-–]\s*/)[0];
+    const num = parseFloat(qtyPart);
+    return { quantity: isNaN(num) ? undefined : num, unit: m[2].trim() };
+  }
+  const num = parseFloat(trimmed);
+  if (!isNaN(num)) return { quantity: num, unit: undefined };
+  return { quantity: undefined, unit: trimmed };
 }
 
 function getRecipeInstructions(instructions: string | null): string[] {

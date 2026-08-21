@@ -179,7 +179,6 @@ function ListCard({
                     <span className="item-meta">{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
                   )}
                   {item.source === 'ai_suggested' && <span className="tag tag-ai">AI</span>}
-                  {item.status === 'pending' && <span className="tag tag-pending">Pending</span>}
                 </ChevronActions>
               ))}
             </div>
@@ -223,8 +222,8 @@ export default function GroceryListPage() {
   }, [searchInput]);
 
   const filtered = useMemo(() => {
-    if (!debouncedQuery) return lists;
-    return lists.filter((l) => l.name.toLowerCase().includes(debouncedQuery));
+    const base = !debouncedQuery ? lists : lists.filter((l) => l.name.toLowerCase().includes(debouncedQuery));
+    return [...base].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   }, [lists, debouncedQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
