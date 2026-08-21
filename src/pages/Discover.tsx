@@ -14,14 +14,39 @@ interface SelectedRecipe extends DiscoverRecipe {
   showAllIngredients?: boolean;
 }
 
+const STORAGE_KEY = 'fp_discover_results';
+
+interface PersistedDiscover {
+  recipes: DiscoverRecipe[];
+  meta: { total_searched: number; returned: number };
+}
+
+function loadPersisted(): PersistedDiscover | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function savePersisted(data: PersistedDiscover) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
 export default function Discover() {
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [recipes, setRecipes] = useState<DiscoverRecipe[]>([]);
-  const [meta, setMeta] = useState<{ total_searched: number; returned: number } | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+
+  const persisted = useMemo(() => loadPersisted(), []);
+  const [recipes, setRecipes] = useState<DiscoverRecipe[]>(persisted?.recipes ?? []);
+  const [meta, setMeta] = useState<{ total_searched: number; returned: number } | null>(persisted?.meta ?? null);
+  const [hasSearched, setHasSearched] = useState(!!persisted);
 
   const [detailRecipe, setDetailRecipe] = useState<SelectedRecipe | null>(null);
   const [addingToGrocery, setAddingToGrocery] = useState<DiscoverRecipe | null>(null);
@@ -31,7 +56,6 @@ export default function Discover() {
   useEffect(() => {
     pantry.list().then((items) => {
       setPantryItems(items);
-      setSelected(new Set(items.map((i) => i.name)));
     }).catch(() => setError('Failed to load pantry'));
   }, []);
 
@@ -61,6 +85,7 @@ export default function Discover() {
       const result = await discover.search(Array.from(selected));
       setRecipes(result.recipes);
       setMeta(result.meta);
+      savePersisted({ recipes: result.recipes, meta: result.meta });
     } catch {
       setError('Failed to discover recipes. Please try again.');
     } finally {

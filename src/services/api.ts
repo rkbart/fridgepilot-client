@@ -118,6 +118,7 @@ export interface RecipeIngredient {
 export interface Recipe {
   id: number;
   name: string;
+  image_url?: string;
   ingredients: RecipeIngredient[];
   instructions: string[];
 }
@@ -137,7 +138,7 @@ export const recipes = {
     return request<RecipeListResult>(`/api/v1/recipes${query ? `?${query}` : ''}`);
   },
   get: (id: number) => request<Recipe>(`/api/v1/recipes/${id}`),
-  create: (data: { name: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
+  create: (data: { name: string; image_url?: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
     request<Recipe>('/api/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe: data }) }),
   update: (id: number, data: Partial<Recipe>) =>
     request<Recipe>(`/api/v1/recipes/${id}`, { method: 'PATCH', body: JSON.stringify({ recipe: data }) }),

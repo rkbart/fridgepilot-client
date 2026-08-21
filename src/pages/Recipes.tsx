@@ -159,7 +159,7 @@ function StepEditor({ steps, onChange, hideTitle }: StepEditorProps) {
       <div className={`recipe-section-title-row ${hideTitle ? 'detail-add-row' : ''}`}>
         {!hideTitle && (
           <span className="recipe-section-title">
-            Procedure
+            Instructions
             {steps.length > 0 && <span className="section-count">{steps.length}</span>}
           </span>
         )}
@@ -228,6 +228,7 @@ interface RecipeCreateModalProps {
 
 function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
   const [name, setName] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [newIngredients, setNewIngredients] = useState<RecipeIngredient[]>([]);
   const [newSteps, setNewSteps] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -251,6 +252,7 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
     try {
       const recipe = await recipes.create({
         name: name.trim(),
+        image_url: imageUrl.trim() || undefined,
         ingredients: newIngredients,
         instructions: newSteps,
       });
@@ -283,6 +285,15 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
                 }
               }}
               autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Photo URL (optional)</label>
+            <input
+              className="form-input"
+              placeholder="https://example.com/photo.jpg"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
             />
           </div>
           <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
@@ -353,6 +364,11 @@ function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredie
   return (
     <div className="card">
       <div className="recipe-header" onClick={onToggle}>
+        {recipe.image_url && (
+          <div className="recipe-card-image">
+            <img src={recipe.image_url} alt={recipe.name} loading="lazy" />
+          </div>
+        )}
         <div className="recipe-header-info">
           <div className="recipe-title-row">
             <span className="recipe-name">{recipe.name}</span>
@@ -422,7 +438,7 @@ function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredie
               className={tab === 'steps' ? 'active' : ''}
               onClick={() => setTab('steps')}
             >
-              Procedure
+              Instructions
             </button>
           </div>
           {tab === 'ingredients' ? (
