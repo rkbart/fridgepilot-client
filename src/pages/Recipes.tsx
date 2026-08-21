@@ -159,7 +159,7 @@ function StepEditor({ steps, onChange, hideTitle }: StepEditorProps) {
       <div className={`recipe-section-title-row ${hideTitle ? 'detail-add-row' : ''}`}>
         {!hideTitle && (
           <span className="recipe-section-title">
-            Procedure
+            Instructions
             {steps.length > 0 && <span className="section-count">{steps.length}</span>}
           </span>
         )}
@@ -228,6 +228,9 @@ interface RecipeCreateModalProps {
 
 function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
   const [name, setName] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [newIngredients, setNewIngredients] = useState<RecipeIngredient[]>([]);
   const [newSteps, setNewSteps] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -241,6 +244,17 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImageUrl('');
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreate = async () => {
     if (!name.trim()) {
       setError('Please enter a recipe name');
@@ -249,16 +263,33 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
     setError('');
     setSaving(true);
     try {
-      const recipe = await recipes.create({
-        name: name.trim(),
-        ingredients: newIngredients,
-        instructions: newSteps,
-      });
+      let recipe: Recipe;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('recipe[name]', name.trim());
+        formData.append('recipe[image]', imageFile);
+        if (newIngredients.length > 0) formData.append('recipe[ingredients]', JSON.stringify(newIngredients));
+        if (newSteps.length > 0) formData.append('recipe[instructions]', JSON.stringify(newSteps));
+        recipe = await recipes.createWithImage(formData);
+      } else {
+        recipe = await recipes.create({
+          name: name.trim(),
+          image_url: imageUrl.trim() || undefined,
+          ingredients: newIngredients,
+          instructions: newSteps,
+        });
+      }
       onCreated(recipe);
     } catch {
       setError('Failed to create recipe');
       setSaving(false);
     }
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setImageUrl('');
   };
 
   return (
@@ -283,6 +314,33 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
                 }
               }}
               autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Photo</label>
+            {imagePreview ? (
+              <div className="recipe-image-preview">
+                <img src={imagePreview} alt="Preview" />
+                <button type="button" className="btn btn-secondary btn-sm" onClick={clearImage}>Remove</button>
+              </div>
+            ) : (
+              <div className="recipe-image-upload">
+                <label className="recipe-image-upload-btn">
+                  <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+                  Choose file
+                </label>
+                <span className="recipe-image-upload-hint">or paste a URL below</span>
+              </div>
+            )}
+          </div>
+          <div className="form-group">
+            <label>Photo URL (optional)</label>
+            <input
+              className="form-input"
+              placeholder="https://example.com/photo.jpg"
+              value={imageUrl}
+              onChange={(e) => { setImageUrl(e.target.value); setImageFile(null); setImagePreview(''); }}
+              disabled={!!imageFile}
             />
           </div>
           <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
@@ -341,11 +399,12 @@ interface RecipeCardProps {
   onToggle: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onPhotoEdit: () => void;
   onIngredientsChange: (ingredients: RecipeIngredient[]) => void;
   onStepsChange: (steps: string[]) => void;
 }
 
-function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredientsChange, onStepsChange }: RecipeCardProps) {
+function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onPhotoEdit, onIngredientsChange, onStepsChange }: RecipeCardProps) {
   const [tab, setTab] = useState<'ingredients' | 'steps'>('ingredients');
   const ingCount = (recipe.ingredients || []).length;
   const stepCount = (recipe.instructions || []).length;
@@ -353,6 +412,30 @@ function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredie
   return (
     <div className="card">
       <div className="recipe-header" onClick={onToggle}>
+        <div className="recipe-card-image">
+          {recipe.image_url ? (
+            <img src={recipe.image_url} alt={recipe.name} loading="lazy" />
+          ) : (
+            <div className="recipe-card-placeholder">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </div>
+          )}
+          {expanded && (
+            <button
+              type="button"
+              className="recipe-card-photo-btn"
+              aria-label="Edit photo"
+              onClick={(e) => { e.stopPropagation(); onPhotoEdit(); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="recipe-header-info">
           <div className="recipe-title-row">
             <span className="recipe-name">{recipe.name}</span>
@@ -422,13 +505,145 @@ function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredie
               className={tab === 'steps' ? 'active' : ''}
               onClick={() => setTab('steps')}
             >
-              Procedure
+              Instructions
             </button>
           </div>
           {tab === 'ingredients' ? (
             <IngredientEditor hideTitle ingredients={recipe.ingredients || []} onChange={onIngredientsChange} />
           ) : (
             <StepEditor hideTitle steps={recipe.instructions || []} onChange={onStepsChange} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface RecipePhotoEditModalProps {
+  recipe: Recipe;
+  onClose: () => void;
+  onSaved: (recipe: Recipe) => void;
+}
+
+function RecipePhotoEditModal({ recipe, onClose, onSaved }: RecipePhotoEditModalProps) {
+  const [imageUrl, setImageUrl] = useState(recipe.image_url || '');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImageUrl('');
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      let updated: Recipe;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('recipe[image]', imageFile);
+        updated = await recipes.updateWithImage(recipe.id, formData);
+      } else {
+        updated = await recipes.update(recipe.id, { image_url: imageUrl.trim() || undefined });
+      }
+      onSaved(updated);
+    } catch {
+      setError('Failed to update photo');
+      setSaving(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await recipes.update(recipe.id, { image_url: '' });
+      onSaved(updated);
+    } catch {
+      setError('Failed to remove photo');
+      setSaving(false);
+    }
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setImageUrl('');
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Edit photo" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Edit photo</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          {imagePreview ? (
+            <div className="recipe-image-preview">
+              <img src={imagePreview} alt="Preview" />
+              <button type="button" className="btn btn-secondary btn-sm" onClick={clearImage}>Remove</button>
+            </div>
+          ) : recipe.image_url ? (
+            <div className="recipe-image-preview">
+              <img src={recipe.image_url} alt={recipe.name} />
+            </div>
+          ) : null}
+          <div className="form-group" style={{ marginTop: '0.75rem' }}>
+            <label>Upload from file</label>
+            <div className="recipe-image-upload">
+              <label className="recipe-image-upload-btn">
+                <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+                Choose file
+              </label>
+            </div>
+          </div>
+          <div className="form-group" style={{ marginTop: '0.75rem' }}>
+            <label>Or paste a URL</label>
+            <input
+              className="form-input"
+              placeholder="https://example.com/photo.jpg"
+              value={imageUrl}
+              onChange={(e) => { setImageUrl(e.target.value); setImageFile(null); setImagePreview(''); }}
+              disabled={!!imageFile}
+            />
+          </div>
+          {error && <div className="error-msg" style={{ marginTop: '0.75rem' }}>{error}</div>}
+        </div>
+        <div className="modal-footer">
+          {recipe.image_url && !confirmingRemove && (
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmingRemove(true)} disabled={saving}>
+              Remove photo
+            </button>
+          )}
+          {confirmingRemove && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+              <span style={{ color: 'var(--charcoal)', fontSize: '0.875rem' }}>Remove photo?</span>
+              <button type="button" className="btn btn-danger" onClick={handleRemovePhoto} disabled={saving}>
+                Yes, remove
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirmingRemove(false)} disabled={saving}>
+                No
+              </button>
+            </span>
+          )}
+          {!confirmingRemove && (
+            <>
+              <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+            </>
           )}
         </div>
       </div>
@@ -446,6 +661,7 @@ export default function Recipes() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<Recipe | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<Recipe | null>(null);
+  const [editingPhoto, setEditingPhoto] = useState<Recipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -579,6 +795,7 @@ export default function Recipes() {
             onToggle={() => setExpandedId((cur) => (cur === recipe.id ? null : recipe.id))}
             onRename={() => setRenaming(recipe)}
             onDelete={() => setConfirmingDelete(recipe)}
+            onPhotoEdit={() => setEditingPhoto(recipe)}
             onIngredientsChange={(ingredients) => updateRecipe(recipe.id, { ingredients })}
             onStepsChange={(steps) => updateRecipe(recipe.id, { instructions: steps })}
           />
@@ -629,6 +846,17 @@ export default function Recipes() {
         <RecipeCreateModal
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
+        />
+      )}
+
+      {editingPhoto && (
+        <RecipePhotoEditModal
+          recipe={editingPhoto}
+          onClose={() => setEditingPhoto(null)}
+          onSaved={(updated) => {
+            setList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+            setEditingPhoto(null);
+          }}
         />
       )}
     </div>

@@ -118,6 +118,7 @@ export interface RecipeIngredient {
 export interface Recipe {
   id: number;
   name: string;
+  image_url?: string;
   ingredients: RecipeIngredient[];
   instructions: string[];
 }
@@ -137,10 +138,24 @@ export const recipes = {
     return request<RecipeListResult>(`/api/v1/recipes${query ? `?${query}` : ''}`);
   },
   get: (id: number) => request<Recipe>(`/api/v1/recipes/${id}`),
-  create: (data: { name: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
+  create: (data: { name: string; image_url?: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
     request<Recipe>('/api/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe: data }) }),
+  createWithImage: (formData: FormData): Promise<Recipe> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}/api/v1/recipes`, { method: 'POST', headers, body: formData })
+      .then((res) => { if (!res.ok) throw res; return res.json(); });
+  },
   update: (id: number, data: Partial<Recipe>) =>
     request<Recipe>(`/api/v1/recipes/${id}`, { method: 'PATCH', body: JSON.stringify({ recipe: data }) }),
+  updateWithImage: (id: number, formData: FormData): Promise<Recipe> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}/api/v1/recipes/${id}`, { method: 'PATCH', headers, body: formData })
+      .then((res) => { if (!res.ok) throw res; return res.json(); });
+  },
   delete: (id: number) => request<void>(`/api/v1/recipes/${id}`, { method: 'DELETE' }),
 };
 
@@ -228,4 +243,45 @@ export const settings = {
   get: () => request<UserSettings>('/api/v1/settings'),
   update: (data: { ai_api_key?: string; ai_api_endpoint?: string }) =>
     request<{ data: { message: string } }>('/api/v1/settings', { method: 'PUT', body: JSON.stringify({ settings: data }) }),
+};
+
+// Recipe Discovery
+export interface DiscoverIngredient {
+  name: string;
+  measure: string;
+  available: boolean;
+}
+
+export interface DiscoverRecipe {
+  id: string;
+  name: string;
+  image_url: string | null;
+  category: string | null;
+  area: string | null;
+  instructions: string | null;
+  youtube_url: string | null;
+  tags: string[] | null;
+  match_pct: number;
+  total_ingredients: number;
+  available_count: number;
+  ingredients: DiscoverIngredient[];
+  available: string[];
+  missing: string[];
+}
+
+export interface DiscoverResult {
+  recipes: DiscoverRecipe[];
+  meta: {
+    total_searched: number;
+    returned: number;
+    query_ingredients: string[];
+  };
+}
+
+export const discover = {
+  search: (ingredients: string[]): Promise<DiscoverResult> =>
+    request<DiscoverResult>('/api/v1/discover', {
+      method: 'POST',
+      body: JSON.stringify({ ingredients }),
+    }),
 };
