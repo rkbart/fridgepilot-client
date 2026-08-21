@@ -572,6 +572,7 @@ textarea.form-input {
   border-radius: var(--radius-sm);
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
 }
 
 .recipe-card-image img {
@@ -589,6 +590,32 @@ textarea.form-input {
   background: var(--linen-warm);
   color: var(--stone);
   border-radius: var(--radius-sm);
+}
+
+.recipe-card-photo-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--white);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.recipe-card-image:hover .recipe-card-photo-btn {
+  opacity: 1;
+}
+
+.recipe-card-photo-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .recipe-image-preview {
