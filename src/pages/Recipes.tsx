@@ -566,7 +566,7 @@ function RecipePhotoEditModal({ recipe, onClose, onSaved }: RecipePhotoEditModal
     setSaving(true);
     setError('');
     try {
-      const updated = await recipes.update(recipe.id, { image_url: undefined });
+      const updated = await recipes.update(recipe.id, { image_url: '' });
       onSaved(updated);
     } catch {
       setError('Failed to remove photo');
