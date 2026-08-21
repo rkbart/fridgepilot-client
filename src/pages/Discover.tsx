@@ -84,13 +84,27 @@ export default function Discover() {
     setAddingToGrocery(recipe);
   };
 
-  const handleAddToGrocery = async (listId: number, missing: string[]) => {
+  const handleAddToGrocery = async (missing: string[], options: { listId?: number; newListName?: string }) => {
     if (!addingToGrocery) return;
     try {
-      for (const name of missing) {
-        await groceryLists.addItem(listId, { name });
+      let listId = options.listId;
+      let listName = 'grocery list';
+
+      if (options.newListName) {
+        const newList = await groceryLists.create({ name: options.newListName, source: 'manual' });
+        listId = newList.id;
+        listName = newList.name;
+        setGroceryListsData((prev) => [...prev, newList]);
+      } else if (listId) {
+        listName = groceryListsData.find((l) => l.id === listId)?.name || 'grocery list';
       }
-      const listName = groceryListsData.find((l) => l.id === listId)?.name || 'grocery list';
+
+      if (listId) {
+        for (const name of missing) {
+          await groceryLists.addItem(listId, { name });
+        }
+      }
+
       setAddSuccess(`${missing.length} ingredient${missing.length !== 1 ? 's' : ''} added to ${listName}`);
       setAddingToGrocery(null);
       setTimeout(() => setAddSuccess(''), 3000);
@@ -260,7 +274,7 @@ export default function Discover() {
         <AddToGroceryModal
           recipe={addingToGrocery}
           lists={groceryListsData}
-          onSelect={handleAddToGrocery}
+          onSelect={(missing, options) => handleAddToGrocery(missing, options)}
           onCancel={() => setAddingToGrocery(null)}
         />
       )}
@@ -406,10 +420,12 @@ function AddToGroceryModal({
 }: {
   recipe: DiscoverRecipe;
   lists: GroceryList[];
-  onSelect: (listId: number, missing: string[]) => void;
+  onSelect: (missing: string[], options: { listId?: number; newListName?: string }) => void;
   onCancel: () => void;
 }) {
+  const [mode, setMode] = useState<'existing' | 'new'>(lists.length === 0 ? 'new' : 'existing');
   const [selectedListId, setSelectedListId] = useState<number | null>(lists.length > 0 ? lists[0].id : null);
+  const [newListName, setNewListName] = useState(recipe.name);
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -420,7 +436,7 @@ function AddToGroceryModal({
         </div>
         <div className="modal-body">
           <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
-            Add {recipe.missing.length} missing ingredient{recipe.missing.length !== 1 ? 's' : ''} from "{recipe.name}" to a grocery list:
+            Add {recipe.missing.length} missing ingredient{recipe.missing.length !== 1 ? 's' : ''} from "{recipe.name}":
           </p>
           <div className="item-list" style={{ marginBottom: '1rem' }}>
             {recipe.missing.map((name) => (
@@ -429,31 +445,68 @@ function AddToGroceryModal({
               </div>
             ))}
           </div>
-          <div className="form-group">
-            <label>Grocery List</label>
-            {lists.length === 0 ? (
-              <p className="empty-inline">No grocery lists found. Create one first.</p>
-            ) : (
-              <select
-                className="form-input"
-                value={selectedListId ?? ''}
-                onChange={(e) => setSelectedListId(Number(e.target.value))}
-              >
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>{list.name}</option>
-                ))}
-              </select>
-            )}
+          <div className="detail-tabs" style={{ marginBottom: '0.75rem' }}>
+            <button
+              type="button"
+              className={mode === 'existing' ? 'active' : ''}
+              onClick={() => setMode('existing')}
+            >
+              Existing list
+            </button>
+            <button
+              type="button"
+              className={mode === 'new' ? 'active' : ''}
+              onClick={() => setMode('new')}
+            >
+              New list
+            </button>
           </div>
+          {mode === 'existing' ? (
+            <div className="form-group">
+              <label>Grocery List</label>
+              {lists.length === 0 ? (
+                <p className="empty-inline">No grocery lists found.</p>
+              ) : (
+                <select
+                  className="form-input"
+                  value={selectedListId ?? ''}
+                  onChange={(e) => setSelectedListId(Number(e.target.value))}
+                >
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>{list.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          ) : (
+            <div className="form-group">
+              <label>List name</label>
+              <input
+                className="form-input"
+                type="text"
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+                placeholder="e.g. Chicken Adobo"
+                autoFocus
+              />
+            </div>
+          )}
         </div>
         <div className="modal-footer">
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!selectedListId}
-            onClick={() => selectedListId && onSelect(selectedListId, recipe.missing)}
+            disabled={mode === 'existing' && !selectedListId}
+            onClick={() => {
+              if (mode === 'new') {
+                const trimmed = newListName.trim();
+                if (trimmed) onSelect(recipe.missing, { newListName: trimmed });
+              } else if (selectedListId) {
+                onSelect(recipe.missing, { listId: selectedListId });
+              }
+            }}
           >
-            Add to List
+            {mode === 'new' ? 'Create & Add' : 'Add to List'}
           </button>
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
         </div>
