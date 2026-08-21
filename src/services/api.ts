@@ -140,8 +140,22 @@ export const recipes = {
   get: (id: number) => request<Recipe>(`/api/v1/recipes/${id}`),
   create: (data: { name: string; image_url?: string; ingredients?: RecipeIngredient[]; instructions?: string[] }) =>
     request<Recipe>('/api/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe: data }) }),
+  createWithImage: (formData: FormData): Promise<Recipe> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}/api/v1/recipes`, { method: 'POST', headers, body: formData })
+      .then((res) => { if (!res.ok) throw res; return res.json(); });
+  },
   update: (id: number, data: Partial<Recipe>) =>
     request<Recipe>(`/api/v1/recipes/${id}`, { method: 'PATCH', body: JSON.stringify({ recipe: data }) }),
+  updateWithImage: (id: number, formData: FormData): Promise<Recipe> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}/api/v1/recipes/${id}`, { method: 'PATCH', headers, body: formData })
+      .then((res) => { if (!res.ok) throw res; return res.json(); });
+  },
   delete: (id: number) => request<void>(`/api/v1/recipes/${id}`, { method: 'DELETE' }),
 };
 

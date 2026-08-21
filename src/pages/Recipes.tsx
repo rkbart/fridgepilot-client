@@ -229,6 +229,8 @@ interface RecipeCreateModalProps {
 function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [newIngredients, setNewIngredients] = useState<RecipeIngredient[]>([]);
   const [newSteps, setNewSteps] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -242,6 +244,17 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImageUrl('');
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreate = async () => {
     if (!name.trim()) {
       setError('Please enter a recipe name');
@@ -250,17 +263,33 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
     setError('');
     setSaving(true);
     try {
-      const recipe = await recipes.create({
-        name: name.trim(),
-        image_url: imageUrl.trim() || undefined,
-        ingredients: newIngredients,
-        instructions: newSteps,
-      });
+      let recipe: Recipe;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('recipe[name]', name.trim());
+        formData.append('recipe[image]', imageFile);
+        if (newIngredients.length > 0) formData.append('recipe[ingredients]', JSON.stringify(newIngredients));
+        if (newSteps.length > 0) formData.append('recipe[instructions]', JSON.stringify(newSteps));
+        recipe = await recipes.createWithImage(formData);
+      } else {
+        recipe = await recipes.create({
+          name: name.trim(),
+          image_url: imageUrl.trim() || undefined,
+          ingredients: newIngredients,
+          instructions: newSteps,
+        });
+      }
       onCreated(recipe);
     } catch {
       setError('Failed to create recipe');
       setSaving(false);
     }
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setImageUrl('');
   };
 
   return (
@@ -288,12 +317,30 @@ function RecipeCreateModal({ onClose, onCreated }: RecipeCreateModalProps) {
             />
           </div>
           <div className="form-group">
+            <label>Photo</label>
+            {imagePreview ? (
+              <div className="recipe-image-preview">
+                <img src={imagePreview} alt="Preview" />
+                <button type="button" className="btn btn-secondary btn-sm" onClick={clearImage}>Remove</button>
+              </div>
+            ) : (
+              <div className="recipe-image-upload">
+                <label className="recipe-image-upload-btn">
+                  <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+                  Choose file
+                </label>
+                <span className="recipe-image-upload-hint">or paste a URL below</span>
+              </div>
+            )}
+          </div>
+          <div className="form-group">
             <label>Photo URL (optional)</label>
             <input
               className="form-input"
               placeholder="https://example.com/photo.jpg"
               value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
+              onChange={(e) => { setImageUrl(e.target.value); setImageFile(null); setImagePreview(''); }}
+              disabled={!!imageFile}
             />
           </div>
           <IngredientEditor ingredients={newIngredients} onChange={setNewIngredients} />
@@ -364,11 +411,17 @@ function RecipeCard({ recipe, expanded, onToggle, onRename, onDelete, onIngredie
   return (
     <div className="card">
       <div className="recipe-header" onClick={onToggle}>
-        {recipe.image_url && (
-          <div className="recipe-card-image">
+        <div className="recipe-card-image">
+          {recipe.image_url ? (
             <img src={recipe.image_url} alt={recipe.name} loading="lazy" />
-          </div>
-        )}
+          ) : (
+            <div className="recipe-card-placeholder">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </div>
+          )}
+        </div>
         <div className="recipe-header-info">
           <div className="recipe-title-row">
             <span className="recipe-name">{recipe.name}</span>

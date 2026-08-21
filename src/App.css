@@ -580,6 +580,60 @@ textarea.form-input {
   object-fit: cover;
 }
 
+.recipe-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--linen-warm);
+  color: var(--stone);
+  border-radius: var(--radius-sm);
+}
+
+.recipe-image-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.recipe-image-preview img {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.recipe-image-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recipe-image-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--stone);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recipe-image-upload-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.recipe-image-upload-hint {
+  font-size: 0.8rem;
+  color: var(--stone);
+}
+
 .recipe-header-info {
   flex: 1;
   min-width: 0;
