@@ -531,6 +531,7 @@ function RecipePhotoEditModal({ recipe, onClose, onSaved }: RecipePhotoEditModal
   const [imagePreview, setImagePreview] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -620,15 +621,30 @@ function RecipePhotoEditModal({ recipe, onClose, onSaved }: RecipePhotoEditModal
           {error && <div className="error-msg" style={{ marginTop: '0.75rem' }}>{error}</div>}
         </div>
         <div className="modal-footer">
-          {recipe.image_url && (
-            <button type="button" className="btn btn-danger" onClick={handleRemovePhoto} disabled={saving}>
+          {recipe.image_url && !confirmingRemove && (
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmingRemove(true)} disabled={saving}>
               Remove photo
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          {confirmingRemove && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+              <span style={{ color: 'var(--charcoal)', fontSize: '0.875rem' }}>Remove photo?</span>
+              <button type="button" className="btn btn-danger" onClick={handleRemovePhoto} disabled={saving}>
+                Yes, remove
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirmingRemove(false)} disabled={saving}>
+                No
+              </button>
+            </span>
+          )}
+          {!confirmingRemove && (
+            <>
+              <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+            </>
+          )}
         </div>
       </div>
     </div>
