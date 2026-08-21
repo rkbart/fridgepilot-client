@@ -196,6 +196,8 @@ export interface GroceryList {
   name: string;
   source: 'manual' | 'ai_generated';
   items: GroceryItem[];
+  created_at: string;
+  updated_at: string;
 }
 
 export const groceryLists = {
