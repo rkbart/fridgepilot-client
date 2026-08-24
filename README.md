@@ -52,7 +52,7 @@ Create a `.env` file (see `.env.example`). Only `VITE_*` variables are exposed t
 |---|---|---|
 | `/login` | Login | Sign in with email/password (JWT) |
 | `/signup` | Signup | Create an account |
-| `/pantry` | Pantry | Add / delete items you have on hand |
+| `/pantry` | Pantry | Add / edit / delete items you have on hand; duplicate names (case-insensitive) are rejected |
 | `/recipes` | Recipes | Manage your recipes and view AI suggestions |
 | `/grocery-lists` | Grocery lists | Create lists; add / edit / delete / check off items with quantity + unit dropdown |
 | `/ai-suggestions` | AI suggestions | AI recipe suggestions based on pantry contents |

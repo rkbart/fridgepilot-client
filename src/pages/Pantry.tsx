@@ -99,14 +99,19 @@ export default function Pantry() {
 
   const allExpanded = visibleCategories.length > 0 && visibleCategories.every((cat) => !collapsed[cat]);
 
+  const apiErrorMessage = (e: unknown, fallback: string) => {
+    const msg = (e as { error?: { message?: string } })?.error?.message;
+    return msg || fallback;
+  };
+
   const handleCreate = async (values: { name: string; quantity?: number; unit?: string; category?: string }) => {
     setError('');
     try {
       const item = await pantry.create(values);
       setList((prev) => [...prev, item]);
       setAddingItem(false);
-    } catch {
-      setError('Failed to add item');
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Failed to add item'));
     }
   };
 
@@ -116,8 +121,8 @@ export default function Pantry() {
       const updated = await pantry.update(id, values);
       setList((prev) => prev.map((i) => (i.id === id ? updated : i)));
       setEditingItem(null);
-    } catch {
-      setError('Failed to update item');
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Failed to update item'));
     }
   };
 
