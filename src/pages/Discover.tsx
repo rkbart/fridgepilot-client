@@ -16,6 +16,7 @@ interface SelectedRecipe extends DiscoverRecipe {
 }
 
 const STORAGE_KEY = 'fp_discover_results';
+const SELECTION_KEY = 'fp_discover_selected';
 
 interface PersistedDiscover {
   recipes: DiscoverRecipe[];
@@ -38,9 +39,27 @@ function savePersisted(data: PersistedDiscover) {
   } catch { /* ignore */ }
 }
 
+function loadSelection(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(SELECTION_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSelection(selected: Set<string>) {
+  try {
+    sessionStorage.setItem(SELECTION_KEY, JSON.stringify(Array.from(selected)));
+  } catch { /* ignore */ }
+}
+
 export default function Discover() {
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(() => loadSelection());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,13 +76,66 @@ export default function Discover() {
   useEffect(() => {
     pantry.list().then((items) => {
       setPantryItems(items);
+      setSelected((prev) => {
+        const names = new Set(items.map((i) => i.name));
+        const next = new Set(Array.from(prev).filter((n) => names.has(n)));
+        return next.size === prev.size ? prev : next;
+      });
     }).catch(() => setError('Failed to load pantry'));
   }, []);
 
-  const allNames = useMemo(() => pantryItems.map((i) => i.name), [pantryItems]);
+  useEffect(() => {
+    saveSelection(selected);
+  }, [selected]);
 
-  const toggleIngredient = (name: string) => {
-    setSelected((prev) => {
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedQuery(searchInput.trim().toLowerCase()); }, 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  interface ItemGroup {
+    name: string;
+    items: PantryItem[];
+  }
+
+  const groups = useMemo<ItemGroup[]>(() => {
+    const map = new Map<string, PantryItem[]>();
+    for (const item of pantryItems) {
+      const key = item.category?.trim() || 'Other';
+      const list = map.get(key);
+      if (list) list.push(item);
+      else map.set(key, [item]);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, items]) => ({
+        name,
+        items: items.sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+  }, [pantryItems]);
+
+  const visibleGroups = useMemo(() => {
+    if (!debouncedQuery) return groups;
+    return groups
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((i) => i.name.toLowerCase().includes(debouncedQuery)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [groups, debouncedQuery]);
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const nameToGroup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of groups) {
+      for (const item of group.items) map.set(item.name, group.name);
+    }
+    return map;
+  }, [groups]);
+
+  const toggleGroup = (name: string) => {
+    setExpandedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
@@ -71,7 +143,72 @@ export default function Discover() {
     });
   };
 
-  const selectAll = () => setSelected(new Set(allNames));
+  const toggleGroupSelection = (group: ItemGroup) => {
+    const allSelected = group.items.every((i) => selected.has(i.name));
+    if (!allSelected) {
+      setExpandedGroups((prev) => (prev.has(group.name) ? prev : new Set(prev).add(group.name)));
+    }
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const item of group.items) {
+        if (allSelected) next.delete(item.name);
+        else next.add(item.name);
+      }
+      return next;
+    });
+  };
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+
+  const suggestions = useMemo(() => {
+    const q = searchInput.trim().toLowerCase();
+    if (!q) return [];
+    return pantryItems
+      .filter((i) => i.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [pantryItems, searchInput]);
+
+  const pickSuggestion = (name: string) => {
+    toggleIngredient(name);
+    setSearchInput('');
+    setDebouncedQuery('');
+    setShowSuggestions(false);
+    setHighlightIndex(-1);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setHighlightIndex(-1);
+      return;
+    }
+    if (!showSuggestions || suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      pickSuggestion(suggestions[Math.max(highlightIndex, 0)].name);
+    }
+  };
+
+  const toggleIngredient = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else {
+        next.add(name);
+        const groupName = nameToGroup.get(name);
+        if (groupName) setExpandedGroups((g) => (g.has(groupName) ? g : new Set(g).add(groupName)));
+      }
+      return next;
+    });
+  };
+
   const clearAll = () => setSelected(new Set());
 
   const handleSearch = useCallback(async () => {
@@ -181,26 +318,122 @@ export default function Discover() {
       {addSuccess && <div className="info-msg">{addSuccess}</div>}
 
       <div className="discover-chips-section">
-        <div className="discover-chips-header">
-          <span className="discover-chips-label">Select ingredients to search with:</span>
-          <div className="discover-chips-actions">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={selectAll}>Select all</button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={clearAll}>Clear</button>
+        <span className="discover-chips-label">Select ingredients to search with:</span>
+        <div className="discover-picker-search">
+          <div className="search-box">
+            <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.5" y2="16.5" />
+            </svg>
+            <input
+              className="form-input"
+              type="search"
+              placeholder={`Search ${pantryItems.length} ingredients…`}
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setShowSuggestions(true);
+                setHighlightIndex(-1);
+              }}
+              onFocus={() => { if (searchInput.trim()) setShowSuggestions(true); }}
+              onBlur={() => setShowSuggestions(false)}
+              onKeyDown={handleSearchKeyDown}
+            />
           </div>
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="discover-suggestions">
+              {suggestions.map((item, i) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`discover-suggestion ${i === highlightIndex ? 'active' : ''} ${selected.has(item.name) ? 'picked' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pickSuggestion(item.name)}
+                >
+                  <span>{selected.has(item.name) ? '✓ ' : ''}{item.name}</span>
+                  {(item.quantity != null || item.unit) && (
+                    <span className="discover-item-meta">{[item.quantity, item.unit].filter(Boolean).join(' ')}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="discover-chips">
-          {pantryItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`discover-chip ${selected.has(item.name) ? 'selected' : ''}`}
-              onClick={() => toggleIngredient(item.name)}
-            >
-              {selected.has(item.name) && <span className="discover-chip-check">✓</span>}
-              {item.name}
-            </button>
-          ))}
+
+        <div className="discover-groups">
+          {visibleGroups.length === 0 && (
+            <p className="discover-no-match">No ingredients match "{searchInput.trim()}"</p>
+          )}
+          {visibleGroups.map((group) => {
+            const isCollapsed = !debouncedQuery && !expandedGroups.has(group.name);
+            const allSelected = group.items.every((i) => selected.has(i.name));
+            return (
+              <div key={group.name} className="discover-group">
+                <div className="discover-group-header">
+                  <button
+                    type="button"
+                    className="discover-group-name"
+                    onClick={() => toggleGroup(group.name)}
+                    aria-expanded={!isCollapsed}
+                  >
+                    <span className={`discover-chevron ${isCollapsed ? 'collapsed' : ''}`}>▾</span>
+                    {group.name}
+                    <span className="discover-group-count">{group.items.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => toggleGroupSelection(group)}
+                  >
+                    {allSelected ? 'Deselect' : 'Select all'}
+                  </button>
+                </div>
+                {!isCollapsed && (
+                  <div className="discover-items">
+                    {group.items.map((item) => (
+                      <label
+                        key={item.id}
+                        className={`discover-item ${selected.has(item.name) ? 'selected' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(item.name)}
+                          onChange={() => toggleIngredient(item.name)}
+                        />
+                        <span className="discover-item-name">{item.name}</span>
+                        {(item.quantity != null || item.unit) && (
+                          <span className="discover-item-meta">{[item.quantity, item.unit].filter(Boolean).join(' ')}</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {selected.size > 0 && (
+          <div className="discover-tray">
+            <span className="discover-tray-label">Selected ({selected.size})</span>
+            <div className="discover-tray-tokens">
+              {Array.from(selected).map((name) => (
+                <span key={name} className="discover-token">
+                  {name}
+                  <button
+                    type="button"
+                    className="discover-token-remove"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => toggleIngredient(name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={clearAll}>Clear all</button>
+          </div>
+        )}
       </div>
 
       <div className="discover-search">
