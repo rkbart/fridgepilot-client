@@ -25,6 +25,10 @@ interface PersistedDiscover {
 
 function loadPersisted(): PersistedDiscover | null {
   try {
+    const selectionRaw = sessionStorage.getItem(SELECTION_KEY);
+    if (!selectionRaw) return null;
+    const selection = JSON.parse(selectionRaw);
+    if (!Array.isArray(selection) || selection.length === 0) return null;
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
@@ -72,6 +76,8 @@ export default function Discover() {
   const [addingToGrocery, setAddingToGrocery] = useState<DiscoverRecipe | null>(null);
   const [groceryListsData, setGroceryListsData] = useState<GroceryList[]>([]);
   const [addSuccess, setAddSuccess] = useState('');
+  const [showTopBtn, setShowTopBtn] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     pantry.list().then((items) => {
@@ -84,14 +90,30 @@ export default function Discover() {
     }).catch(() => setError('Failed to load pantry'));
   }, []);
 
+  //oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => {
     saveSelection(selected);
+    if (selected.size === 0) {
+      setRecipes([]);
+      setMeta(null);
+      setHasSearched(false);
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    }
   }, [selected]);
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedQuery(searchInput.trim().toLowerCase()); }, 250);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  useEffect(() => { setPage(1); }, [recipes]);
+
+  useEffect(() => {
+    const onScroll = () => setShowTopBtn(window.scrollY > 300);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   interface ItemGroup {
     name: string;
@@ -211,6 +233,10 @@ export default function Discover() {
 
   const clearAll = () => setSelected(new Set());
 
+  const backToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const PER_PAGE = 5;
+
   const handleSearch = useCallback(async () => {
     if (selected.size === 0) {
       setError('Select at least one ingredient to search');
@@ -234,6 +260,10 @@ export default function Discover() {
   const perfectMatch = useMemo(() => recipes.filter((r) => r.match_pct === 100), [recipes]);
   const almostThere = useMemo(() => recipes.filter((r) => r.match_pct >= 60 && r.match_pct < 100), [recipes]);
   const moreNeeded = useMemo(() => recipes.filter((r) => r.match_pct < 60), [recipes]);
+
+  const paginatedPerfect = useMemo(() => perfectMatch.slice((page - 1) * PER_PAGE, page * PER_PAGE), [perfectMatch, page]);
+  const paginatedAlmost = useMemo(() => almostThere.slice((page - 1) * PER_PAGE, page * PER_PAGE), [almostThere, page]);
+  const paginatedMore = useMemo(() => moreNeeded.slice((page - 1) * PER_PAGE, page * PER_PAGE), [moreNeeded, page]);
 
   const openDetail = (recipe: DiscoverRecipe) => setDetailRecipe({ ...recipe, showAllIngredients: false });
 
@@ -472,10 +502,19 @@ export default function Discover() {
           </div>
           <p className="discover-section-sub">You have everything you need</p>
           <div className="card-grid">
-            {perfectMatch.map((recipe) => (
+            {paginatedPerfect.map((recipe) => (
               <RecipeCard key={recipe.id} recipe={recipe} onView={openDetail} />
             ))}
           </div>
+          {perfectMatch.length > PER_PAGE && (
+            <div className="pagination">
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
+              <span className="pagination-info">{page} / {Math.ceil(perfectMatch.length / PER_PAGE)}</span>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(perfectMatch.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(perfectMatch.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(perfectMatch.length / PER_PAGE)); backToTop(); }}>»</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -487,7 +526,7 @@ export default function Discover() {
           </div>
           <p className="discover-section-sub">Just a few ingredients away</p>
           <div className="card-grid">
-            {almostThere.map((recipe) => (
+            {paginatedAlmost.map((recipe) => (
               <RecipeCard
                 key={recipe.id}
                 recipe={recipe}
@@ -496,6 +535,15 @@ export default function Discover() {
               />
             ))}
           </div>
+          {almostThere.length > PER_PAGE && (
+            <div className="pagination">
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
+              <span className="pagination-info">{page} / {Math.ceil(almostThere.length / PER_PAGE)}</span>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(almostThere.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(almostThere.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(almostThere.length / PER_PAGE)); backToTop(); }}>»</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -507,7 +555,7 @@ export default function Discover() {
           </div>
           <p className="discover-section-sub">Lower match, but still possible</p>
           <div className="card-grid">
-            {moreNeeded.map((recipe) => (
+            {paginatedMore.map((recipe) => (
               <RecipeCard
                 key={recipe.id}
                 recipe={recipe}
@@ -516,6 +564,15 @@ export default function Discover() {
               />
             ))}
           </div>
+          {moreNeeded.length > PER_PAGE && (
+            <div className="pagination">
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
+              <span className="pagination-info">{page} / {Math.ceil(moreNeeded.length / PER_PAGE)}</span>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(moreNeeded.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(moreNeeded.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(moreNeeded.length / PER_PAGE)); backToTop(); }}>»</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -543,6 +600,14 @@ export default function Discover() {
           onSelect={(missing, options) => handleAddToGrocery(missing, options)}
           onCancel={() => setAddingToGrocery(null)}
         />
+      )}
+
+      {showTopBtn && (
+        <button type="button" className="back-to-top" aria-label="Back to top" onClick={backToTop}>
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+            <path d="M12 10l-4-4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       )}
     </div>
   );
