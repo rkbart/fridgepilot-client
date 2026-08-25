@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   pantry,
@@ -81,6 +81,7 @@ export default function Discover() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [showTopBtn, setShowTopBtn] = useState(false);
   const [page, setPage] = useState(1);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     pantry.list().then((items) => {
@@ -236,7 +237,11 @@ export default function Discover() {
 
   const clearAll = () => setSelected(new Set());
 
-  const backToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const scrollToResults = () => {
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const PER_PAGE = 5;
 
@@ -515,7 +520,7 @@ export default function Discover() {
       )}
 
       {!loading && sortedRecipes.length > 0 && (
-        <div className="discover-section">
+        <div ref={resultsRef} className="discover-section">
           <div className="discover-section-header">
             <h2>Recipes</h2>
             <span className="section-count">{sortedRecipes.length}</span>
@@ -536,11 +541,11 @@ export default function Discover() {
           </div>
           {sortedRecipes.length > PER_PAGE && (
             <div className="pagination">
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); scrollToResults(); }}>«</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); scrollToResults(); }}>‹</button>
               <span className="pagination-info">{page} / {Math.ceil(sortedRecipes.length / PER_PAGE)}</span>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(sortedRecipes.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(sortedRecipes.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(sortedRecipes.length / PER_PAGE)); backToTop(); }}>»</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(sortedRecipes.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); scrollToResults(); }}>›</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(sortedRecipes.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(sortedRecipes.length / PER_PAGE)); scrollToResults(); }}>»</button>
             </div>
           )}
         </div>
@@ -576,7 +581,7 @@ export default function Discover() {
       )}
 
       {showTopBtn && (
-        <button type="button" className="back-to-top" aria-label="Back to top" onClick={backToTop}>
+        <button type="button" className="back-to-top" aria-label="Back to top" onClick={scrollToTop}>
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
             <path d="M12 10l-4-4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
