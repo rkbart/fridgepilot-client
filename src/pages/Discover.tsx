@@ -260,13 +260,15 @@ export default function Discover() {
     }
   }, [selected]);
 
-  const perfectMatch = useMemo(() => recipes.filter((r) => r.match_pct === 100), [recipes]);
-  const almostThere = useMemo(() => recipes.filter((r) => r.match_pct >= 60 && r.match_pct < 100), [recipes]);
-  const moreNeeded = useMemo(() => recipes.filter((r) => r.match_pct < 60), [recipes]);
+  const sortedRecipes = useMemo(() =>
+    [...recipes].sort((a, b) => b.match_pct - a.match_pct || b.available_count - a.available_count),
+    [recipes]
+  );
 
-  const paginatedPerfect = useMemo(() => perfectMatch.slice((page - 1) * PER_PAGE, page * PER_PAGE), [perfectMatch, page]);
-  const paginatedAlmost = useMemo(() => almostThere.slice((page - 1) * PER_PAGE, page * PER_PAGE), [almostThere, page]);
-  const paginatedMore = useMemo(() => moreNeeded.slice((page - 1) * PER_PAGE, page * PER_PAGE), [moreNeeded, page]);
+  const paginatedRecipes = useMemo(() =>
+    sortedRecipes.slice((page - 1) * PER_PAGE, page * PER_PAGE),
+    [sortedRecipes, page]
+  );
 
   const openDetail = (recipe: DiscoverRecipe) => setDetailRecipe({ ...recipe, showAllIngredients: false });
 
@@ -512,89 +514,33 @@ export default function Discover() {
         </div>
       )}
 
-      {!loading && perfectMatch.length > 0 && (
+      {!loading && sortedRecipes.length > 0 && (
         <div className="discover-section">
           <div className="discover-section-header">
-            <h2>Perfect Match</h2>
-            <span className="section-count">{perfectMatch.length}</span>
+            <h2>Recipes</h2>
+            <span className="section-count">{sortedRecipes.length}</span>
           </div>
-          <p className="discover-section-sub">You have everything you need</p>
+          <p className="discover-section-sub">Sorted by best match</p>
           <div className="card-grid">
-            {paginatedPerfect.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} onView={openDetail} onSave={handleSaveRecipe} savedIds={savedIds} savingId={savingId} />
-            ))}
-          </div>
-          {perfectMatch.length > PER_PAGE && (
-            <div className="pagination">
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
-              <span className="pagination-info">{page} / {Math.ceil(perfectMatch.length / PER_PAGE)}</span>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(perfectMatch.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(perfectMatch.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(perfectMatch.length / PER_PAGE)); backToTop(); }}>»</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!loading && almostThere.length > 0 && (
-        <div className="discover-section">
-          <div className="discover-section-header">
-            <h2>Almost There</h2>
-            <span className="section-count">{almostThere.length}</span>
-          </div>
-          <p className="discover-section-sub">Just a few ingredients away</p>
-          <div className="card-grid">
-            {paginatedAlmost.map((recipe) => (
+            {paginatedRecipes.map((recipe) => (
               <RecipeCard
                 key={recipe.id}
                 recipe={recipe}
                 onView={openDetail}
-                onAddMissing={openAddToGrocery}
+                onAddMissing={recipe.missing.length > 0 ? openAddToGrocery : undefined}
                 onSave={handleSaveRecipe}
                 savedIds={savedIds}
                 savingId={savingId}
               />
             ))}
           </div>
-          {almostThere.length > PER_PAGE && (
+          {sortedRecipes.length > PER_PAGE && (
             <div className="pagination">
               <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
               <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
-              <span className="pagination-info">{page} / {Math.ceil(almostThere.length / PER_PAGE)}</span>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(almostThere.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(almostThere.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(almostThere.length / PER_PAGE)); backToTop(); }}>»</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!loading && moreNeeded.length > 0 && (
-        <div className="discover-section">
-          <div className="discover-section-header">
-            <h2>More Ingredients Needed</h2>
-            <span className="section-count">{moreNeeded.length}</span>
-          </div>
-          <p className="discover-section-sub">Lower match, but still possible</p>
-          <div className="card-grid">
-            {paginatedMore.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                onView={openDetail}
-                onAddMissing={openAddToGrocery}
-                onSave={handleSaveRecipe}
-                savedIds={savedIds}
-                savingId={savingId}
-              />
-            ))}
-          </div>
-          {moreNeeded.length > PER_PAGE && (
-            <div className="pagination">
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage(1); backToTop(); }}>«</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => { setPage((p) => p - 1); backToTop(); }}>‹</button>
-              <span className="pagination-info">{page} / {Math.ceil(moreNeeded.length / PER_PAGE)}</span>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(moreNeeded.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(moreNeeded.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(moreNeeded.length / PER_PAGE)); backToTop(); }}>»</button>
+              <span className="pagination-info">{page} / {Math.ceil(sortedRecipes.length / PER_PAGE)}</span>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(sortedRecipes.length / PER_PAGE)} onClick={() => { setPage((p) => p + 1); backToTop(); }}>›</button>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={page >= Math.ceil(sortedRecipes.length / PER_PAGE)} onClick={() => { setPage(Math.ceil(sortedRecipes.length / PER_PAGE)); backToTop(); }}>»</button>
             </div>
           )}
         </div>
