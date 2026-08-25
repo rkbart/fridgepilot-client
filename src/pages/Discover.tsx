@@ -4,6 +4,7 @@ import {
   pantry,
   groceryLists,
   discover,
+  recipes as recipesApi,
   UNITS,
   type PantryItem,
   type GroceryList,
@@ -76,6 +77,8 @@ export default function Discover() {
   const [addingToGrocery, setAddingToGrocery] = useState<DiscoverRecipe | null>(null);
   const [groceryListsData, setGroceryListsData] = useState<GroceryList[]>([]);
   const [addSuccess, setAddSuccess] = useState('');
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [showTopBtn, setShowTopBtn] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -313,6 +316,21 @@ export default function Discover() {
     }
   };
 
+  const handleSaveRecipe = async (recipe: DiscoverRecipe) => {
+    if (savedIds.has(recipe.id)) return;
+    setSavingId(recipe.id);
+    try {
+      await recipesApi.importFromMealDb(recipe.id);
+      setSavedIds((prev) => new Set(prev).add(recipe.id));
+      setAddSuccess(`"${recipe.name}" saved to your recipes`);
+      setTimeout(() => setAddSuccess(''), 3000);
+    } catch {
+      setError('Failed to save recipe');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   if (pantryItems.length === 0 && !error) {
     return (
       <div>
@@ -503,7 +521,7 @@ export default function Discover() {
           <p className="discover-section-sub">You have everything you need</p>
           <div className="card-grid">
             {paginatedPerfect.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} onView={openDetail} />
+              <RecipeCard key={recipe.id} recipe={recipe} onView={openDetail} onSave={handleSaveRecipe} savedIds={savedIds} savingId={savingId} />
             ))}
           </div>
           {perfectMatch.length > PER_PAGE && (
@@ -532,6 +550,9 @@ export default function Discover() {
                 recipe={recipe}
                 onView={openDetail}
                 onAddMissing={openAddToGrocery}
+                onSave={handleSaveRecipe}
+                savedIds={savedIds}
+                savingId={savingId}
               />
             ))}
           </div>
@@ -561,6 +582,9 @@ export default function Discover() {
                 recipe={recipe}
                 onView={openDetail}
                 onAddMissing={openAddToGrocery}
+                onSave={handleSaveRecipe}
+                savedIds={savedIds}
+                savingId={savingId}
               />
             ))}
           </div>
@@ -590,6 +614,9 @@ export default function Discover() {
             setDetailRecipe(null);
             openAddToGrocery(recipe);
           }}
+          onSave={handleSaveRecipe}
+          isSaved={savedIds.has(detailRecipe.id)}
+          isSaving={savingId === detailRecipe.id}
         />
       )}
 
@@ -617,11 +644,19 @@ function RecipeCard({
   recipe,
   onView,
   onAddMissing,
+  onSave,
+  savedIds,
+  savingId,
 }: {
   recipe: DiscoverRecipe;
   onView: (r: DiscoverRecipe) => void;
   onAddMissing?: (r: DiscoverRecipe) => void;
+  onSave?: (r: DiscoverRecipe) => void;
+  savedIds?: Set<string>;
+  savingId?: string | null;
 }) {
+  const isSaved = savedIds?.has(recipe.id) ?? false;
+  const isSaving = savingId === recipe.id;
   return (
     <div className="card discover-card">
       {recipe.image_url && (
@@ -661,6 +696,16 @@ function RecipeCard({
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => onView(recipe)}>
             View Recipe
           </button>
+          {onSave && (
+            <button
+              type="button"
+              className={`btn btn-sm ${isSaved ? 'btn-secondary' : 'btn-primary'}`}
+              onClick={() => onSave(recipe)}
+              disabled={isSaved || isSaving}
+            >
+              {isSaving ? 'Saving...' : isSaved ? 'Saved' : 'Save'}
+            </button>
+          )}
           {onAddMissing && recipe.missing.length > 0 && (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => onAddMissing(recipe)}>
               Add Missing
@@ -676,10 +721,16 @@ function RecipeDetailModal({
   recipe,
   onClose,
   onAddMissing,
+  onSave,
+  isSaved,
+  isSaving,
 }: {
   recipe: SelectedRecipe;
   onClose: () => void;
   onAddMissing: (r: DiscoverRecipe) => void;
+  onSave?: (r: DiscoverRecipe) => void;
+  isSaved?: boolean;
+  isSaving?: boolean;
 }) {
   const instructions = getRecipeInstructions(recipe.instructions);
 
@@ -731,6 +782,16 @@ function RecipeDetailModal({
           )}
         </div>
         <div className="modal-footer">
+          {onSave && (
+            <button
+              type="button"
+              className={`btn ${isSaved ? 'btn-secondary' : 'btn-primary'}`}
+              onClick={() => onSave(recipe)}
+              disabled={isSaved || isSaving}
+            >
+              {isSaving ? 'Saving...' : isSaved ? 'Saved to Recipes' : 'Save to My Recipes'}
+            </button>
+          )}
           {recipe.missing.length > 0 && (
             <button type="button" className="btn btn-primary" onClick={() => onAddMissing(recipe)}>
               Add {recipe.missing.length} Missing to Grocery List
