@@ -1,30 +1,74 @@
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import RequireAuth from './components/RequireAuth';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Dashboard from './pages/Dashboard';
 import Recipes from './pages/Recipes';
 import Pantry from './pages/Pantry';
 import GroceryListPage from './pages/GroceryList';
 import AISuggestions from './pages/AISuggestions';
 import Discover from './pages/Discover';
 import SettingsPage from './pages/Settings';
-import { isAuthenticated, logout } from './services/api';
-import { useState } from 'react';
+import { isAuthenticated, logout, getCurrentUser } from './services/api';
+import { PantryProvider } from './contexts/PantryContext';
+import { RecipesProvider } from './contexts/RecipesContext';
+import { GroceryListProvider } from './contexts/GroceryListContext';
+import { ToastProvider } from './contexts/ToastContext';
 import './App.css';
 
-const NAV_ITEMS = [
-  { path: '/recipes', label: 'Recipes', icon: '📄' },
-  { path: '/pantry', label: 'Pantry', icon: '🥫' },
-  { path: '/discover', label: 'Discover', icon: '🔍' },
-  { path: '/grocery-lists', label: 'Groceries', icon: '🛒' },
-  { path: '/ai-suggestions', label: 'AI Helper', icon: '✨' },
-  { path: '/settings', label: 'Settings', icon: '⚙️' },
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+}
+
+const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
+  {
+    label: null,
+    items: [{ path: '/dashboard', label: 'Home', icon: '🏠' }],
+  },
+  {
+    label: 'Discover',
+    items: [
+      { path: '/discover', label: 'Discover', icon: '🔍' },
+      { path: '/ai-suggestions', label: 'AI Helper', icon: '✨' },
+    ],
+  },
+  {
+    label: 'Manage',
+    items: [
+      { path: '/pantry', label: 'Pantry', icon: '🥫' },
+      { path: '/recipes', label: 'Recipes', icon: '📄' },
+      { path: '/grocery-lists', label: 'Groceries', icon: '🛒' },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [{ path: '/settings', label: 'Settings', icon: '⚙️' }],
+  },
 ];
+
+const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
+function useCurrentUser() {
+  const [user, setUser] = useState<{ name?: string; email: string } | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    getCurrentUser()
+      .then((res) => setUser(res.user))
+      .catch(() => {});
+  }, []);
+
+  return user;
+}
 
 function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loggedIn, setLoggedIn] = useState(isAuthenticated());
+  const user = useCurrentUser();
 
   const handleLogout = async () => {
     await logout();
@@ -34,6 +78,9 @@ function Sidebar() {
 
   if (!loggedIn) return null;
 
+  const displayName = user?.name || user?.email?.split('@')[0] || '';
+  const initial = displayName.charAt(0).toUpperCase() || '?';
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -41,18 +88,32 @@ function Sidebar() {
         <span>Cook Smart</span>
       </div>
       <nav>
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={location.pathname === item.path ? 'active' : ''}
-          >
-            <span>{item.icon}</span>
-            {item.label}
-          </Link>
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={gi} className="nav-group">
+            {group.label && <span className="nav-group-label">{group.label}</span>}
+            {group.items.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={location.pathname === item.path ? 'active' : ''}
+              >
+                <span>{item.icon}</span>
+                {item.label}
+              </Link>
+            ))}
+          </div>
         ))}
       </nav>
       <div className="sidebar-footer">
+        {user && (
+          <div className="sidebar-profile">
+            <span className="sidebar-avatar" aria-hidden="true">{initial}</span>
+            <span className="sidebar-profile-info">
+              <span className="sidebar-profile-name">{displayName || 'Account'}</span>
+              <span className="sidebar-profile-email">{user.email}</span>
+            </span>
+          </div>
+        )}
         <button onClick={handleLogout}>Sign out</button>
       </div>
     </aside>
@@ -93,22 +154,29 @@ function AppRoutes() {
 
   return (
     <RequireAuth>
-      <div className="app-layout">
-        <Sidebar />
-        <main className="main-content">
-          <Routes>
-            <Route path="/recipes" element={<Recipes />} />
-            <Route path="/pantry" element={<Pantry />} />
-            <Route path="/discover" element={<Discover />} />
-            <Route path="/grocery-lists" element={<GroceryListPage />} />
-            <Route path="/ai-suggestions" element={<AISuggestions />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/" element={<Navigate to="/recipes" replace />} />
-            <Route path="*" element={<Navigate to="/recipes" replace />} />
-          </Routes>
-        </main>
-        <MobileNav />
-      </div>
+      <PantryProvider>
+        <RecipesProvider>
+          <GroceryListProvider>
+            <div className="app-layout">
+              <Sidebar />
+              <main className="main-content">
+                <Routes>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/recipes" element={<Recipes />} />
+                  <Route path="/pantry" element={<Pantry />} />
+                  <Route path="/discover" element={<Discover />} />
+                  <Route path="/grocery-lists" element={<GroceryListPage />} />
+                  <Route path="/ai-suggestions" element={<AISuggestions />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </main>
+              <MobileNav />
+            </div>
+          </GroceryListProvider>
+        </RecipesProvider>
+      </PantryProvider>
     </RequireAuth>
   );
 }
@@ -116,7 +184,9 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+      </ToastProvider>
     </BrowserRouter>
   );
 }

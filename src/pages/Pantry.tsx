@@ -1,7 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
-import { pantry, UNITS, type PantryItem } from '../services/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { UNITS, type PantryItem } from '../services/api';
+import { usePantry } from '../contexts/PantryContext';
+import { useToast } from '../contexts/ToastContext';
 import ChevronActions from '../components/ChevronActions';
 import EditModal from '../components/EditModal';
+import { SkeletonList } from '../components/Skeleton';
+import { useFocusSearch } from '../hooks/useFocusSearch';
 
 const CATEGORIES = [
   'Uncategorized',
@@ -36,7 +40,10 @@ function CategoryChevron({ collapsed }: { collapsed: boolean }) {
 }
 
 export default function Pantry() {
-  const [list, setList] = useState<PantryItem[]>([]);
+  const { items, loading, error: contextError, addItem, updateItem, deleteItem } = usePantry();
+  const { showToast } = useToast();
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  useFocusSearch(searchRef);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [openId, setOpenId] = useState<number | null>(null);
@@ -44,7 +51,6 @@ export default function Pantry() {
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [showTopBtn, setShowTopBtn] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -54,10 +60,6 @@ export default function Pantry() {
   }, [searchInput]);
 
   useEffect(() => {
-    pantry.list().then(setList).catch(() => setError('Failed to load pantry'));
-  }, []);
-
-  useEffect(() => {
     const onScroll = () => setShowTopBtn(window.scrollY > 300);
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
@@ -65,9 +67,9 @@ export default function Pantry() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!debouncedQuery) return list;
-    return list.filter((i) => i.name.toLowerCase().includes(debouncedQuery));
-  }, [list, debouncedQuery]);
+    if (!debouncedQuery) return items;
+    return items.filter((i) => i.name.toLowerCase().includes(debouncedQuery));
+  }, [items, debouncedQuery]);
 
   const grouped = useMemo(() => {
     const map: Record<string, PantryItem[]> = {};
@@ -78,43 +80,52 @@ export default function Pantry() {
     return map;
   }, [filtered]);
 
-  const visibleCategories = useMemo(() => Object.keys(grouped), [grouped]);
-
   const apiErrorMessage = (e: unknown, fallback: string) => {
     const msg = (e as { error?: { message?: string } })?.error?.message;
     return msg || fallback;
   };
 
   const handleCreate = async (values: { name: string; quantity?: number; unit?: string; category?: string }) => {
-    setError('');
     try {
-      const item = await pantry.create(values);
-      setList((prev) => [...prev, item]);
+      await addItem(values);
       setAddingItem(false);
+      showToast(`${values.name} added to pantry`);
     } catch (e) {
-      setError(apiErrorMessage(e, 'Failed to add item'));
+      showToast(apiErrorMessage(e, 'Failed to add item'), 'error');
+    }
+  };
+
+  const handleQuickAdd = async (category: string, e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const input = e.currentTarget.elements.namedItem('name') as HTMLInputElement | null;
+    const name = input?.value.trim();
+    if (!name) return;
+    try {
+      await addItem({ name, category });
+      e.currentTarget.reset();
+      showToast(`${name} added`);
+    } catch (err) {
+      showToast(apiErrorMessage(err, `Could not add "${name}"`), 'error');
     }
   };
 
   const handleUpdate = async (id: number, values: { name: string; quantity?: number; unit?: string; category?: string }) => {
-    setError('');
     try {
-      const updated = await pantry.update(id, values);
-      setList((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      await updateItem(id, values);
       setEditingItem(null);
+      showToast('Item updated');
     } catch (e) {
-      setError(apiErrorMessage(e, 'Failed to update item'));
+      showToast(apiErrorMessage(e, 'Failed to update item'), 'error');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    setError('');
+  const handleDelete = async (id: number, name: string) => {
     try {
-      await pantry.delete(id);
-      setList((prev) => prev.filter((i) => i.id !== id));
+      await deleteItem(id);
       setOpenId(null);
+      showToast(`${name} removed`);
     } catch {
-      setError('Failed to delete item');
+      showToast('Failed to delete item', 'error');
     }
   };
 
@@ -129,7 +140,7 @@ export default function Pantry() {
       <div className="page-header">
         <div className="page-header-title">
           <h1>Pantry</h1>
-          <span className="subtitle">{list.length} item{list.length !== 1 ? 's' : ''}</span>
+          <span className="subtitle">{items.length} item{items.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="page-header-actions">
           <button type="button" className="btn btn-primary" onClick={() => setAddingItem(true)}>
@@ -145,6 +156,7 @@ export default function Pantry() {
             <line x1="21" y1="21" x2="16.5" y2="16.5" />
           </svg>
           <input
+            ref={searchRef}
             className="form-input"
             type="search"
             placeholder="Search pantry…"
@@ -152,11 +164,14 @@ export default function Pantry() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
+        <span className="search-hint" aria-hidden="true">Press / to search</span>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
+      {contextError && <div className="error-msg">{contextError}</div>}
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <SkeletonList count={6} />
+      ) : filtered.length === 0 ? (
         <div className="empty-state">
           <p>
             {debouncedQuery
@@ -166,13 +181,10 @@ export default function Pantry() {
         </div>
       ) : (
         <div className="card-grid pantry-grid">
-          {Object.entries(grouped).map(([cat, items]) => {
+          {Object.entries(grouped).map(([cat, catItems]) => {
             const isCollapsed = !!collapsed[cat];
             return (
-              <div
-                key={cat}
-                className="pantry-section"
-              >
+              <div key={cat} className="pantry-section">
                 <button
                   type="button"
                   className="pantry-category-header"
@@ -181,13 +193,13 @@ export default function Pantry() {
                 >
                   <span className="pantry-category-chevron"><CategoryChevron collapsed={isCollapsed} /></span>
                   <span className="pantry-category-title">
-                    {cat} <span className="section-count">{items.length}</span>
+                    {cat} <span className="section-count">{catItems.length}</span>
                   </span>
                 </button>
                 <div className={`pantry-category-body ${isCollapsed ? '' : 'open'}`}>
                   <div className="pantry-category-body-inner">
                     <div className="card">
-                      {items.map((item) => (
+                      {catItems.map((item) => (
                         <ChevronActions
                           key={item.id}
                           isOpen={openId === item.id}
@@ -195,7 +207,7 @@ export default function Pantry() {
                           actions={
                             <>
                               <button className="action-edit-btn" onClick={() => setEditingItem(item)}>Edit</button>
-                              <button className="action-delete-btn" onClick={() => handleDelete(item.id)}>Delete</button>
+                              <button className="action-delete-btn" onClick={() => handleDelete(item.id, item.name)}>Delete</button>
                             </>
                           }
                         >
@@ -205,6 +217,15 @@ export default function Pantry() {
                           )}
                         </ChevronActions>
                       ))}
+                      <form className="inline-add-row" onSubmit={(e) => handleQuickAdd(cat, e)}>
+                        <span className="add-row-icon">+</span>
+                        <input
+                          name="name"
+                          placeholder={`Quick add to ${cat.toLowerCase()}…`}
+                          aria-label={`Quick add item to ${cat}`}
+                          autoComplete="off"
+                        />
+                      </form>
                     </div>
                   </div>
                 </div>
