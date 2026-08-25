@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { pantry, UNITS, type PantryItem } from '../services/api';
 import ChevronActions from '../components/ChevronActions';
 import EditModal from '../components/EditModal';
@@ -43,16 +43,8 @@ export default function Pantry() {
   const [addingItem, setAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [activeCat, setActiveCat] = useState<string | null>(null);
-  const [flashCat, setFlashCat] = useState<string | null>(null);
   const [showTopBtn, setShowTopBtn] = useState(false);
   const [error, setError] = useState('');
-
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const chipBarRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const collapseTimers = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -63,15 +55,6 @@ export default function Pantry() {
 
   useEffect(() => {
     pantry.list().then(setList).catch(() => setError('Failed to load pantry'));
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      Object.values(collapseTimers.current).forEach((t) => {
-        if (t) clearTimeout(t);
-      });
-    };
   }, []);
 
   useEffect(() => {
@@ -96,8 +79,6 @@ export default function Pantry() {
   }, [filtered]);
 
   const visibleCategories = useMemo(() => Object.keys(grouped), [grouped]);
-
-  const allExpanded = visibleCategories.length > 0 && visibleCategories.every((cat) => !collapsed[cat]);
 
   const apiErrorMessage = (e: unknown, fallback: string) => {
     const msg = (e as { error?: { message?: string } })?.error?.message;
@@ -138,61 +119,7 @@ export default function Pantry() {
   };
 
   const toggleCollapsed = (cat: string) => {
-    if (collapseTimers.current[cat]) {
-      clearTimeout(collapseTimers.current[cat]);
-      collapseTimers.current[cat] = null;
-    }
-    setActiveCat(cat);
     setCollapsed((c) => ({ ...c, [cat]: !c[cat] }));
-  };
-
-  const jumpTo = (cat: string) => {
-    setActiveCat(cat);
-    setCollapsed((c) => (c[cat] ? { ...c, [cat]: false } : c));
-
-    const chip = chipRefs.current[cat];
-    const bar = chipBarRef.current;
-    if (chip && bar) {
-      const left = chip.offsetLeft - (bar.clientWidth - chip.clientWidth) / 2;
-      bar.scrollTo({ left, behavior: 'smooth' });
-    }
-
-    setFlashCat(null);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setFlashCat(cat);
-        sectionRefs.current[cat]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    });
-    if (flashTimer.current) clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlashCat(null), 1200);
-  };
-
-  const toggleAll = () => {
-    Object.values(collapseTimers.current).forEach((t) => {
-      if (t) clearTimeout(t);
-    });
-    collapseTimers.current = {};
-    const expand = !allExpanded;
-    setActiveCat(null);
-    setFlashCat(null);
-    if (expand) {
-      setCollapsed((c) => {
-        const next = { ...c };
-        for (const cat of visibleCategories) delete next[cat];
-        return next;
-      });
-    } else {
-      [...visibleCategories].reverse().forEach((cat, i) => {
-        collapseTimers.current[cat] = setTimeout(() => {
-          collapseTimers.current[cat] = null;
-          setCollapsed((c) => {
-            if (c[cat]) return c;
-            return { ...c, [cat]: true };
-          });
-        }, i * 60);
-      });
-    }
   };
 
   const backToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -229,45 +156,6 @@ export default function Pantry() {
 
       {error && <div className="error-msg">{error}</div>}
 
-      {filtered.length > 0 && (
-        <div className="pantry-chips-wrap">
-          <div className="pantry-chips" ref={chipBarRef} role="group" aria-label="Jump to category">
-            <button
-              type="button"
-              className={`pantry-chip pantry-chip-toggle ${activeCat == null ? 'active' : ''}`}
-              aria-expanded={allExpanded}
-              aria-label={allExpanded ? 'Collapse all categories' : 'Expand all categories'}
-              onClick={toggleAll}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 16 16"
-                fill="none"
-                style={{
-                  transform: allExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.15s ease-out',
-                }}
-              >
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {allExpanded ? 'collapse all' : 'show all'}
-            </button>
-            {visibleCategories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                ref={(el) => { chipRefs.current[cat] = el; }}
-                className={`pantry-chip ${activeCat === cat ? 'active' : ''}`}
-                onClick={() => jumpTo(cat)}
-              >
-                {cat} <span className="pantry-chip-count">{grouped[cat].length}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {filtered.length === 0 ? (
         <div className="empty-state">
           <p>
@@ -283,8 +171,7 @@ export default function Pantry() {
             return (
               <div
                 key={cat}
-                ref={(el) => { sectionRefs.current[cat] = el; }}
-                className={`pantry-section ${flashCat === cat ? 'pantry-section-flash' : ''}`}
+                className="pantry-section"
               >
                 <button
                   type="button"
