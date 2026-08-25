@@ -1,8 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  pantry,
-  groceryLists,
   discover,
   recipes as recipesApi,
   UNITS,
@@ -11,6 +9,9 @@ import {
   type DiscoverRecipe,
   type DiscoverIngredient,
 } from '../services/api';
+import { usePantry } from '../contexts/PantryContext';
+import { useGroceryLists } from '../contexts/GroceryListContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface SelectedRecipe extends DiscoverRecipe {
   showAllIngredients?: boolean;
@@ -61,7 +62,9 @@ function saveSelection(selected: Set<string>) {
 }
 
 export default function Discover() {
-  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
+  const { items: pantryItems, error: pantryError } = usePantry();
+  const { lists: groceryListsData, createList, addItem } = useGroceryLists();
+  const { showToast } = useToast();
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(() => loadSelection());
@@ -75,24 +78,20 @@ export default function Discover() {
 
   const [detailRecipe, setDetailRecipe] = useState<SelectedRecipe | null>(null);
   const [addingToGrocery, setAddingToGrocery] = useState<DiscoverRecipe | null>(null);
-  const [groceryListsData, setGroceryListsData] = useState<GroceryList[]>([]);
-  const [addSuccess, setAddSuccess] = useState('');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [showTopBtn, setShowTopBtn] = useState(false);
   const [page, setPage] = useState(1);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // Prune selected ingredients that no longer exist in the (shared) pantry
   useEffect(() => {
-    pantry.list().then((items) => {
-      setPantryItems(items);
-      setSelected((prev) => {
-        const names = new Set(items.map((i) => i.name));
-        const next = new Set(Array.from(prev).filter((n) => names.has(n)));
-        return next.size === prev.size ? prev : next;
-      });
-    }).catch(() => setError('Failed to load pantry'));
-  }, []);
+    setSelected((prev) => {
+      const names = new Set(pantryItems.map((i) => i.name));
+      const next = new Set(Array.from(prev).filter((n) => names.has(n)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [pantryItems]);
 
   //oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => {
@@ -277,13 +276,7 @@ export default function Discover() {
 
   const openDetail = (recipe: DiscoverRecipe) => setDetailRecipe({ ...recipe, showAllIngredients: false });
 
-  const openAddToGrocery = async (recipe: DiscoverRecipe) => {
-    try {
-      const lists = await groceryLists.list();
-      setGroceryListsData(lists);
-    } catch {
-      setGroceryListsData([]);
-    }
+  const openAddToGrocery = (recipe: DiscoverRecipe) => {
     setAddingToGrocery(recipe);
   };
 
@@ -297,17 +290,16 @@ export default function Discover() {
       let listName = 'grocery list';
 
       if (options.newListName) {
-        const newList = await groceryLists.create({ name: options.newListName, source: 'manual' });
+        const newList = await createList({ name: options.newListName });
         listId = newList.id;
         listName = newList.name;
-        setGroceryListsData((prev) => [...prev, newList]);
       } else if (listId) {
         listName = groceryListsData.find((l) => l.id === listId)?.name || 'grocery list';
       }
 
       if (listId) {
         for (const item of items) {
-          await groceryLists.addItem(listId, {
+          await addItem(listId, {
             name: item.name,
             quantity: item.quantity,
             unit: item.unit,
@@ -315,11 +307,10 @@ export default function Discover() {
         }
       }
 
-      setAddSuccess(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
       setAddingToGrocery(null);
-      setTimeout(() => setAddSuccess(''), 3000);
+      showToast(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
     } catch {
-      setError('Failed to add ingredients');
+      showToast('Failed to add ingredients', 'error');
     }
   };
 
@@ -329,16 +320,17 @@ export default function Discover() {
     try {
       await recipesApi.importFromMealDb(recipe.id);
       setSavedIds((prev) => new Set(prev).add(recipe.id));
-      setAddSuccess(`"${recipe.name}" saved to your recipes`);
-      setTimeout(() => setAddSuccess(''), 3000);
+      showToast(`"${recipe.name}" saved to your recipes`);
     } catch {
-      setError('Failed to save recipe');
+      showToast('Failed to save recipe', 'error');
     } finally {
       setSavingId(null);
     }
   };
 
-  if (pantryItems.length === 0 && !error) {
+  const pageError = error || pantryError;
+
+  if (pantryItems.length === 0 && !pageError) {
     return (
       <div>
         <div className="page-header">
@@ -369,8 +361,7 @@ export default function Discover() {
         </div>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
-      {addSuccess && <div className="info-msg">{addSuccess}</div>}
+      {pageError && <div className="error-msg">{pageError}</div>}
 
       <div className="discover-chips-section">
         <span className="discover-chips-label">Select ingredients to search with:</span>
@@ -626,8 +617,6 @@ function RecipeCard({
           </div>
         </div>
         <div className="discover-card-meta">
-          {recipe.category && <span className="tag tag-manual">{recipe.category}</span>}
-          {recipe.area && <span className="tag tag-ai">{recipe.area}</span>}
           <span className="discover-card-count">
             {recipe.available_count} of {recipe.total_ingredients} ingredients
           </span>
@@ -697,8 +686,6 @@ function RecipeDetailModal({
             <img src={recipe.image_url} alt={recipe.name} className="discover-detail-image" />
           )}
           <div className="discover-detail-meta">
-            {recipe.category && <span className="tag tag-manual">{recipe.category}</span>}
-            {recipe.area && <span className="tag tag-ai">{recipe.area}</span>}
             <div className="score-bar">
               <div className="score-fill">
                 <span style={{ width: `${recipe.match_pct}%` }} />
