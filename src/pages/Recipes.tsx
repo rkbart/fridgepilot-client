@@ -171,7 +171,7 @@ function StepEditor({ steps, onChange, hideTitle }: StepEditorProps) {
         <EditModal
           title="Add step"
           submitLabel="Add"
-          fields={[{ key: 'text', label: 'Step', required: true, autoFocus: true }]}
+          fields={[{ key: 'text', label: 'Step', type: 'textarea', rows: 3, required: true, autoFocus: true }]}
           initial={{}}
           onSubmit={(values) => {
             add(String(values.text ?? '').trim());
