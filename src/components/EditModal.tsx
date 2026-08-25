@@ -3,11 +3,12 @@ import { useState } from 'react';
 export interface EditField {
   key: string;
   label: string;
-  type?: 'text' | 'number' | 'select';
+  type?: 'text' | 'number' | 'select' | 'textarea';
   options?: string[];
   required?: boolean;
   placeholder?: string;
   autoFocus?: boolean;
+  rows?: number;
 }
 
 interface EditModalProps {
@@ -70,6 +71,16 @@ export default function EditModal({ title, fields, initial, onSubmit, onCancel, 
                     <option key={o} value={o}>{o}</option>
                   ))}
                 </select>
+              ) : f.type === 'textarea' ? (
+                <textarea
+                  className="form-input form-textarea"
+                  rows={f.rows ?? 4}
+                  placeholder={f.placeholder}
+                  value={String(formData[f.key] ?? '')}
+                  onChange={(e) => setValue(f.key, e.target.value)}
+                  required={f.required}
+                  autoFocus={f.autoFocus}
+                />
               ) : (
                 <input
                   className="form-input"
