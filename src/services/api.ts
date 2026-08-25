@@ -157,6 +157,11 @@ export const recipes = {
       .then((res) => { if (!res.ok) throw res; return res.json(); });
   },
   delete: (id: number) => request<void>(`/api/v1/recipes/${id}`, { method: 'DELETE' }),
+  importFromMealDb: (mealId: string): Promise<Recipe> =>
+    request<Recipe>('/api/v1/recipes/import', {
+      method: 'POST',
+      body: JSON.stringify({ meal_id: mealId }),
+    }),
 };
 
 // Pantry Items
