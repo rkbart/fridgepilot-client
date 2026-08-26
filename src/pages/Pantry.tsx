@@ -50,6 +50,7 @@ export default function Pantry() {
   const [addingItem, setAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [categoriesInit, setCategoriesInit] = useState(false);
   const [showTopBtn, setShowTopBtn] = useState(false);
 
   useEffect(() => {
@@ -79,6 +80,15 @@ export default function Pantry() {
     }
     return map;
   }, [filtered]);
+
+  // Collapse all categories by default on first load
+  useEffect(() => {
+    if (categoriesInit || Object.keys(grouped).length === 0) return;
+    const allCollapsed: Record<string, boolean> = {};
+    for (const cat of Object.keys(grouped)) allCollapsed[cat] = true;
+    setCollapsed(allCollapsed);
+    setCategoriesInit(true);
+  }, [grouped, categoriesInit]);
 
   const apiErrorMessage = (e: unknown, fallback: string) => {
     const msg = (e as { error?: { message?: string } })?.error?.message;
@@ -182,7 +192,7 @@ export default function Pantry() {
       ) : (
         <div className="card-grid pantry-grid">
           {Object.entries(grouped).map(([cat, catItems]) => {
-            const isCollapsed = !!collapsed[cat];
+            const isCollapsed = collapsed[cat] !== false;
             return (
               <div key={cat} className="pantry-section">
                 <button
