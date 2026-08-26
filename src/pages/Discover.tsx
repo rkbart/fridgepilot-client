@@ -4,6 +4,7 @@ import {
   discover,
   recipes as recipesApi,
   UNITS,
+  normalizeUnit,
   type PantryItem,
   type GroceryList,
   type DiscoverRecipe,
@@ -926,11 +927,11 @@ function parseMeasure(measure: string): { quantity: number | undefined; unit: st
   if (m) {
     const qtyPart = m[1].split(/\s*[-–]\s*/)[0];
     const num = parseFloat(qtyPart);
-    return { quantity: isNaN(num) ? undefined : num, unit: m[2].trim() };
+    return { quantity: isNaN(num) ? undefined : num, unit: normalizeUnit(m[2].trim()) };
   }
   const num = parseFloat(trimmed);
   if (!isNaN(num)) return { quantity: num, unit: undefined };
-  return { quantity: undefined, unit: trimmed };
+  return { quantity: undefined, unit: normalizeUnit(trimmed) };
 }
 
 function getRecipeInstructions(instructions: string | null): string[] {

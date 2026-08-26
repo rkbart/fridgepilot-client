@@ -196,6 +196,12 @@ export const pantry = {
 // Grocery Lists
 export const UNITS = ['oz', 'lb', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'pcs', 'can', 'pack', 'bag', 'dozen', 'bunch', 'slice', 'pinch', 'box'];
 
+export function normalizeUnit(unit: string | undefined): string | undefined {
+  if (!unit) return undefined;
+  const cleaned = unit.trim().toLowerCase().replace(/s$/, '');
+  return UNITS.includes(cleaned) ? cleaned : undefined;
+}
+
 export interface GroceryItem {
   id: number;
   name: string;
