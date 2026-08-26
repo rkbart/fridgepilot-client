@@ -12,6 +12,7 @@ import {
 import { usePantry } from '../contexts/PantryContext';
 import { useGroceryLists } from '../contexts/GroceryListContext';
 import { useToast } from '../contexts/ToastContext';
+import { useFocusSearch } from '../hooks/useFocusSearch';
 
 interface SelectedRecipe extends DiscoverRecipe {
   showAllIngredients?: boolean;
@@ -65,6 +66,8 @@ export default function Discover() {
   const { items: pantryItems, error: pantryError } = usePantry();
   const { lists: groceryListsData, createList, addItem } = useGroceryLists();
   const { showToast } = useToast();
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  useFocusSearch(searchRef);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(() => loadSelection());
@@ -372,6 +375,7 @@ export default function Discover() {
               <line x1="21" y1="21" x2="16.5" y2="16.5" />
             </svg>
             <input
+              ref={searchRef}
               className="form-input"
               type="search"
               placeholder={`Search ${pantryItems.length} ingredients…`}
@@ -386,6 +390,7 @@ export default function Discover() {
               onKeyDown={handleSearchKeyDown}
             />
           </div>
+          <span className="search-hint" aria-hidden="true">Press / to search</span>
           {showSuggestions && suggestions.length > 0 && (
             <div className="discover-suggestions">
               {suggestions.map((item, i) => (
