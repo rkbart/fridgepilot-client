@@ -37,12 +37,16 @@ function clearToken(): void {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     Accept: 'application/json',
     ...(options.headers as Record<string, string>),
   };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Only set Content-Type for requests that have a body
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -58,6 +62,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const body = await res.json().catch(() => ({ errors: ['Request failed'] }));
     throw { status: res.status, ...body };
   }
+
+  // 204 No Content — no body to parse
+  if (res.status === 204) return undefined as T;
 
   return res.json();
 }
