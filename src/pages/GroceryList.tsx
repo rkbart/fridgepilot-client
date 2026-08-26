@@ -25,6 +25,8 @@ export default function GroceryListPage() {
   const [editingItem, setEditingItem] = useState<{ listId: number; itemId: number; name: string; quantity?: number; unit?: string } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newListName, setNewListName] = useState('');
+  const [createError, setCreateError] = useState('');
+  const createFormRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -44,6 +46,7 @@ export default function GroceryListPage() {
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError('');
     try {
       await createList({ name: newListName });
       setNewListName('');
@@ -51,7 +54,10 @@ export default function GroceryListPage() {
       showToast('List created');
     } catch (err: unknown) {
       const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to create list';
-      showToast(message, 'error');
+      setCreateError(message);
+      requestAnimationFrame(() => {
+        createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     }
   };
 
@@ -148,10 +154,8 @@ export default function GroceryListPage() {
         <span className="search-hint" aria-hidden="true">Press / to search</span>
       </div>
 
-      {contextError && <div className="error-msg">{contextError}</div>}
-
       {showCreate && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card" style={{ marginBottom: '1rem' }} ref={createFormRef}>
           <form onSubmit={handleCreateList} className="inline-form">
             <div className="form-group inline-form-field-lg">
               <label>List name</label>
@@ -159,9 +163,10 @@ export default function GroceryListPage() {
             </div>
             <div className="inline-form-actions">
               <button type="submit" className="btn btn-primary btn-sm">Create</button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowCreate(false); setCreateError(''); }}>Cancel</button>
             </div>
           </form>
+          {createError && <div className="error-msg" style={{ marginTop: '0.75rem' }}>{createError}</div>}
         </div>
       )}
 
