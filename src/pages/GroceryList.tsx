@@ -12,7 +12,14 @@ export default function GroceryListPage() {
   const { lists, loading, error: contextError, createList, updateList, deleteList, addItem, updateItem, deleteItem } = useGroceryLists();
   const { showToast } = useToast();
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   useFocusSearch(searchRef);
+
+  useEffect(() => {
+    if (contextError && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [contextError]);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -148,7 +155,7 @@ export default function GroceryListPage() {
         <span className="search-hint" aria-hidden="true">Press / to search</span>
       </div>
 
-      {contextError && <div className="error-msg">{contextError}</div>}
+      {contextError && <div className="error-msg" ref={errorRef}>{contextError}</div>}
 
       {showCreate && (
         <div className="card" style={{ marginBottom: '1rem' }}>
