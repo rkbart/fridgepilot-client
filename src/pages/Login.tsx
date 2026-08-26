@@ -12,7 +12,7 @@ export default function Login() {
     setError('');
     try {
       await login({ email, password });
-      window.location.href = '/recipes';
+      window.location.href = '/dashboard';
     } catch (err: unknown) {
       const msg = (err as { error?: { message?: string } })?.error?.message || 'Invalid email or password';
       setError(msg);
