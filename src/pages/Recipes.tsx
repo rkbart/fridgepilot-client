@@ -130,6 +130,7 @@ export default function Recipes() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
+        <span className="search-hint" aria-hidden="true">Press / to search</span>
       </div>
 
       {contextError && <div className="error-msg">{contextError}</div>}
