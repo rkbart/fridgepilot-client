@@ -14,7 +14,7 @@ export default function Signup() {
     setError('');
     try {
       await signup({ email, password, password_confirmation: passwordConfirmation, name });
-      window.location.href = '/recipes';
+      window.location.href = '/dashboard';
     } catch (err: unknown) {
       const msg = (err as { error?: { message?: string } })?.error?.message || 'Registration failed. Please check your details.';
       setError(msg);
