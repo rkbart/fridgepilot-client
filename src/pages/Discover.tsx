@@ -316,8 +316,9 @@ export default function Discover() {
 
       setAddingToGrocery(null);
       showToast(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
-    } catch {
-      showToast('Failed to add ingredients', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to add ingredients';
+      showToast(message, 'error');
     }
   };
 

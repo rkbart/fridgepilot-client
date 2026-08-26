@@ -49,8 +49,9 @@ export default function GroceryListPage() {
       setNewListName('');
       setShowCreate(false);
       showToast('List created');
-    } catch {
-      showToast('Failed to create list', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to create list';
+      showToast(message, 'error');
     }
   };
 
@@ -59,8 +60,9 @@ export default function GroceryListPage() {
       await updateList(list.id, { name });
       setRenaming(null);
       showToast('List renamed');
-    } catch {
-      showToast('Failed to rename list', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to rename list';
+      showToast(message, 'error');
     }
   };
 

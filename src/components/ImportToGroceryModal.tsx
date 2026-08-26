@@ -91,8 +91,9 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
       }
 
       onImported(listId);
-    } catch {
-      setError('Failed to import ingredients');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to import ingredients';
+      setError(message);
       setImporting(false);
     }
   };
