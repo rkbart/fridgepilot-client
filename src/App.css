@@ -424,6 +424,16 @@ textarea.form-input {
   border-radius: var(--radius-sm);
   min-width: 0;
 }
+.grocery-add-row.in-pantry {
+  background: var(--success-bg);
+}
+.grocery-add-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+  flex-shrink: 0;
+  cursor: pointer;
+}
 .grocery-add-row .item-name {
   flex: 1;
   min-width: 0;

@@ -55,7 +55,7 @@ export function GroceryListProvider({ children }: { children: ReactNode }) {
     setLists(prev => prev.filter(l => l.id !== id));
   }, []);
 
-  const addItem = useCallback(async (listId: number, data: { name: string; quantity?: number; unit?: string; recipe_id?: number }) => {
+  const addItem = useCallback(async (listId: number, data: { name: string; quantity?: number; unit?: string; recipe_id?: number; status?: string }) => {
     const item = await groceryLists.addItem(listId, data);
     setLists(prev => prev.map(l => 
       l.id === listId ? { ...l, items: [...l.items, item] } : l
