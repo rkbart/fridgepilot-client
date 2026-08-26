@@ -220,7 +220,7 @@ export const groceryLists = {
   update: (id: number, data: { name: string }) =>
     request<GroceryList>(`/api/v1/grocery_lists/${id}`, { method: 'PATCH', body: JSON.stringify({ grocery_list: data }) }),
   delete: (id: number) => request<void>(`/api/v1/grocery_lists/${id}`, { method: 'DELETE' }),
-  addItem: (listId: number, data: { name: string; quantity?: number; unit?: string; recipe_id?: number }) =>
+  addItem: (listId: number, data: { name: string; quantity?: number; unit?: string; recipe_id?: number; status?: string }) =>
     request<GroceryItem>(`/api/v1/grocery_lists/${listId}/items`, { method: 'POST', body: JSON.stringify({ grocery_item: data }) }),
   updateItem: (listId: number, itemId: number, data: Partial<GroceryItem>) =>
     request<GroceryItem>(`/api/v1/grocery_lists/${listId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify({ grocery_item: data }) }),

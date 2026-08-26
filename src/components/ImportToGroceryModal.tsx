@@ -14,6 +14,7 @@ interface ItemDraft {
   name: string;
   quantity: number | undefined;
   unit: string | undefined;
+  checked: boolean;
 }
 
 export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onImported }: ImportToGroceryModalProps) {
@@ -30,10 +31,13 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
   const [items, setItems] = useState<ItemDraft[]>(() =>
     ingredients.map((ing, idx) => {
       const avail = availability.availability[idx];
-      if (avail?.status === 'available') {
-        return { name: ing.name, quantity: undefined, unit: undefined };
-      }
-      return { name: ing.name, quantity: ing.quantity, unit: ing.unit };
+      const inPantry = avail?.status === 'available';
+      return {
+        name: ing.name,
+        quantity: ing.quantity,
+        unit: ing.unit,
+        checked: inPantry,
+      };
     })
   );
 
@@ -44,6 +48,12 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
+
+  const toggleItem = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, checked: !item.checked } : item))
+    );
+  };
 
   const updateItem = (index: number, field: 'quantity' | 'unit', value: string) => {
     setItems((prev) =>
@@ -82,12 +92,13 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
         listId = selectedListId;
       }
 
-      const toAdd = items.filter((item) => item.quantity != null || item.unit);
+      const toAdd = items.filter((item) => item.checked);
       for (const item of toAdd) {
         await addItem(listId, {
           name: item.name,
           quantity: item.quantity,
           unit: item.unit,
+          status: 'checked',
         });
       }
 
@@ -114,12 +125,18 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
         </div>
         <div className="modal-body">
           <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
-            Add {items.length} ingredient{items.length !== 1 ? 's' : ''} from "{recipe.name}":
+            Add ingredients from "{recipe.name}":
           </p>
 
           <div className="item-list" style={{ marginBottom: '1rem' }}>
             {items.map((item, idx) => (
-              <div key={item.name} className="grocery-add-row">
+              <div key={item.name} className={`grocery-add-row ${item.checked ? 'in-pantry' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleItem(idx)}
+                  className="grocery-add-checkbox"
+                />
                 <span className="item-name">{item.name}</span>
                 <div className="grocery-add-fields">
                   <input

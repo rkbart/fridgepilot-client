@@ -284,7 +284,7 @@ export default function Discover() {
   };
 
   const handleAddToGrocery = async (
-    items: { name: string; quantity?: number; unit?: string }[],
+    items: { name: string; quantity?: number; unit?: string; checked?: boolean }[],
     options: { listId?: number; newListName?: string }
   ) => {
     if (!addingToGrocery) return;
@@ -301,17 +301,20 @@ export default function Discover() {
       }
 
       if (listId) {
-        for (const item of items) {
+        const toAdd = items.filter((item) => item.checked !== false);
+        for (const item of toAdd) {
           await addItem(listId, {
             name: item.name,
             quantity: item.quantity,
             unit: item.unit,
+            status: item.checked ? 'checked' : undefined,
           });
         }
       }
 
       setAddingToGrocery(null);
-      showToast(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
+      const addedCount = items.filter((item) => item.checked !== false).length;
+      showToast(`${addedCount} ingredient${addedCount !== 1 ? 's' : ''} added to ${listName}`);
     } catch {
       showToast('Failed to add ingredients', 'error');
     }
@@ -751,6 +754,7 @@ interface GroceryItemDraft {
   name: string;
   quantity: number | undefined;
   unit: string | undefined;
+  checked: boolean;
 }
 
 function AddToGroceryModal({
@@ -768,19 +772,18 @@ function AddToGroceryModal({
   const [selectedListId, setSelectedListId] = useState<number | null>(lists.length > 0 ? lists[0].id : null);
   const [newListName, setNewListName] = useState(recipe.name);
 
-  const ingredientByName = useMemo(() => {
-    const map = new Map<string, DiscoverIngredient>();
-    for (const ing of recipe.ingredients) map.set(ing.name.toLowerCase(), ing);
-    return map;
-  }, [recipe.ingredients]);
-
   const [items, setItems] = useState<GroceryItemDraft[]>(() =>
-    recipe.missing.map((name) => {
-      const ing = ingredientByName.get(name.toLowerCase());
-      const parsed = ing?.measure ? parseMeasure(ing.measure) : { quantity: undefined, unit: undefined };
-      return { name, quantity: parsed.quantity, unit: parsed.unit };
+    recipe.ingredients.map((ing) => {
+      const parsed = ing.measure ? parseMeasure(ing.measure) : { quantity: undefined, unit: undefined };
+      return { name: ing.name, quantity: parsed.quantity, unit: parsed.unit, checked: ing.available };
     })
   );
+
+  const toggleItem = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, checked: !item.checked } : item))
+    );
+  };
 
   const updateItem = (index: number, field: 'quantity' | 'unit', value: string) => {
     setItems((prev) =>
@@ -799,16 +802,22 @@ function AddToGroceryModal({
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" role="dialog" aria-modal="true" aria-label="Add to grocery list" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Add Missing Ingredients</h2>
+          <h2>Add to Grocery List</h2>
           <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>×</button>
         </div>
         <div className="modal-body">
           <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
-            Add {items.length} missing ingredient{items.length !== 1 ? 's' : ''} from "{recipe.name}":
+            Add ingredients from "{recipe.name}":
           </p>
           <div className="item-list" style={{ marginBottom: '1rem' }}>
             {items.map((item, idx) => (
-              <div key={item.name} className="grocery-add-row">
+              <div key={item.name} className={`grocery-add-row ${item.checked ? 'in-pantry' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleItem(idx)}
+                  className="grocery-add-checkbox"
+                />
                 <span className="item-name">{item.name}</span>
                 <div className="grocery-add-fields">
                   <input
