@@ -32,6 +32,8 @@ function setToken(token: string): void {
 
 function clearToken(): void {
   localStorage.removeItem('token');
+  sessionStorage.removeItem('fp_discover_results');
+  sessionStorage.removeItem('fp_discover_selected');
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
