@@ -57,6 +57,11 @@ export default function Recipes() {
     return () => window.removeEventListener('focus', onFocus);
   }, [refresh]);
 
+  // Refresh when navigating to this page
+  useEffect(() => {
+    refresh();
+  }, [location.pathname, refresh]);
+
   // Handle navigation from Dashboard "Cook tonight?" links: pre-fill the search
   // and auto-expand the target recipe card.
   useEffect(() => {
