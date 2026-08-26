@@ -85,20 +85,6 @@ export default function GroceryListPage() {
     }
   };
 
-  const handleQuickAdd = async (listId: number, e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const input = e.currentTarget.elements.namedItem('name') as HTMLInputElement | null;
-    const name = input?.value.trim();
-    if (!name) return;
-    try {
-      await addItem(listId, { name });
-      e.currentTarget.reset();
-      showToast(`${name} added`);
-    } catch {
-      showToast(`Could not add "${name}"`, 'error');
-    }
-  };
-
   const handleToggleItem = async (listId: number, itemId: number, checked: boolean) => {
     try {
       await updateItem(listId, itemId, { status: checked ? 'checked' : 'pending' });
@@ -306,22 +292,11 @@ export default function GroceryListPage() {
                       )}
 
                       {expandedId === list.id && (
-                        <>
-                          <form className="inline-add-row" onSubmit={(e) => handleQuickAdd(list.id, e)}>
-                            <span className="add-row-icon">+</span>
-                            <input
-                              name="name"
-                              placeholder="Quick add item…"
-                              aria-label={`Quick add item to ${list.name}`}
-                              autoComplete="off"
-                            />
-                          </form>
-                          <div style={{ marginTop: '0.5rem' }}>
-                            <button className="add-row-btn" onClick={() => setAddingToList(list.id)}>
-                              <span className="add-row-icon">+</span> Add with quantity
-                            </button>
-                          </div>
-                        </>
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <button className="add-row-btn" onClick={() => setAddingToList(list.id)}>
+                            <span className="add-row-icon">+</span> Add ingredient
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
