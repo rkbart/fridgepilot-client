@@ -303,7 +303,7 @@ export default function Discover() {
       if (listId) {
         for (const item of items) {
           const pantryMatch = pantryItems.find(
-            (p) => p.name.toLowerCase() === item.name.toLowerCase() && p.quantity === item.quantity && p.unit === item.unit
+            (p) => p.name.toLowerCase() === item.name.toLowerCase()
           );
           await addItem(listId, {
             name: item.name,
@@ -316,8 +316,9 @@ export default function Discover() {
 
       setAddingToGrocery(null);
       showToast(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
-    } catch {
-      showToast('Failed to add ingredients', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to add ingredients';
+      showToast(message, 'error');
     }
   };
 

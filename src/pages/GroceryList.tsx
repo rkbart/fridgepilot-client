@@ -49,8 +49,9 @@ export default function GroceryListPage() {
       setNewListName('');
       setShowCreate(false);
       showToast('List created');
-    } catch {
-      showToast('Failed to create list', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to create list';
+      showToast(message, 'error');
     }
   };
 
@@ -59,8 +60,9 @@ export default function GroceryListPage() {
       await updateList(list.id, { name });
       setRenaming(null);
       showToast('List renamed');
-    } catch {
-      showToast('Failed to rename list', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to rename list';
+      showToast(message, 'error');
     }
   };
 
@@ -82,20 +84,6 @@ export default function GroceryListPage() {
       showToast(`${data.name} added`);
     } catch {
       showToast('Failed to add item', 'error');
-    }
-  };
-
-  const handleQuickAdd = async (listId: number, e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const input = e.currentTarget.elements.namedItem('name') as HTMLInputElement | null;
-    const name = input?.value.trim();
-    if (!name) return;
-    try {
-      await addItem(listId, { name });
-      e.currentTarget.reset();
-      showToast(`${name} added`);
-    } catch {
-      showToast(`Could not add "${name}"`, 'error');
     }
   };
 
@@ -306,22 +294,11 @@ export default function GroceryListPage() {
                       )}
 
                       {expandedId === list.id && (
-                        <>
-                          <form className="inline-add-row" onSubmit={(e) => handleQuickAdd(list.id, e)}>
-                            <span className="add-row-icon">+</span>
-                            <input
-                              name="name"
-                              placeholder="Quick add item…"
-                              aria-label={`Quick add item to ${list.name}`}
-                              autoComplete="off"
-                            />
-                          </form>
-                          <div style={{ marginTop: '0.5rem' }}>
-                            <button className="add-row-btn" onClick={() => setAddingToList(list.id)}>
-                              <span className="add-row-icon">+</span> Add with quantity
-                            </button>
-                          </div>
-                        </>
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <button className="add-row-btn" onClick={() => setAddingToList(list.id)}>
+                            <span className="add-row-icon">+</span> Add ingredient
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
