@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import type { Recipe } from '../services/api';
 import { useRecipes } from '../contexts/RecipesContext';
 import { usePantry } from '../contexts/PantryContext';
@@ -15,6 +15,7 @@ import { useFocusSearch } from '../hooks/useFocusSearch';
 
 export default function Recipes() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const {
     list,
     total,
@@ -49,17 +50,19 @@ export default function Recipes() {
     return () => clearTimeout(t);
   }, [searchInput, setPage, setQuery]);
 
-  // Handle ?q= from Dashboard "Cook tonight?" links: pre-fill the search bar
-  // and run the search immediately, so the result shows like a normal search.
+  // Handle navigation from Dashboard "Cook tonight?" links: pre-fill the search
+  // and auto-expand the target recipe card without showing the query in the search bar.
   useEffect(() => {
     const qParam = searchParams.get('q');
     if (!qParam) return;
 
     setSearchParams({}, { replace: true });
-    setSearchInput(qParam);
     setQuery(qParam);
     setPage(1);
-  }, [searchParams, setSearchParams, setQuery, setPage]);
+
+    const expandId = (location.state as { expandRecipeId?: number } | null)?.expandRecipeId;
+    if (expandId) setExpandedId(expandId);
+  }, [searchParams, setSearchParams, setQuery, setPage, location.state]);
 
   // Leaving the page clears the search so shared context stays unfiltered
   useEffect(() => {
