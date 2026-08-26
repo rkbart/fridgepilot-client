@@ -81,6 +81,7 @@ export default function Discover() {
 
   const [detailRecipe, setDetailRecipe] = useState<SelectedRecipe | null>(null);
   const [addingToGrocery, setAddingToGrocery] = useState<DiscoverRecipe | null>(null);
+  const [groceryError, setGroceryError] = useState('');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [showTopBtn, setShowTopBtn] = useState(false);
@@ -288,6 +289,7 @@ export default function Discover() {
     options: { listId?: number; newListName?: string }
   ) => {
     if (!addingToGrocery) return;
+    setGroceryError('');
     try {
       let listId = options.listId;
       let listName = 'grocery list';
@@ -318,7 +320,7 @@ export default function Discover() {
       showToast(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
     } catch (err: unknown) {
       const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to add ingredients';
-      showToast(message, 'error');
+      setGroceryError(message);
     }
   };
 
@@ -576,8 +578,9 @@ export default function Discover() {
         <AddToGroceryModal
           recipe={addingToGrocery}
           lists={groceryListsData}
+          error={groceryError}
           onSelect={(missing, options) => handleAddToGrocery(missing, options)}
-          onCancel={() => setAddingToGrocery(null)}
+          onCancel={() => { setAddingToGrocery(null); setGroceryError(''); }}
         />
       )}
 
@@ -761,17 +764,29 @@ interface GroceryItemDraft {
 function AddToGroceryModal({
   recipe,
   lists,
+  error,
   onSelect,
   onCancel,
 }: {
   recipe: DiscoverRecipe;
   lists: GroceryList[];
+  error: string;
   onSelect: (items: GroceryItemDraft[], options: { listId?: number; newListName?: string }) => void;
   onCancel: () => void;
 }) {
   const [mode, setMode] = useState<'existing' | 'new'>(lists.length === 0 ? 'new' : 'existing');
   const [selectedListId, setSelectedListId] = useState<number | null>(lists.length > 0 ? lists[0].id : null);
   const [newListName, setNewListName] = useState(recipe.name);
+  const errorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      const modalBody = errorRef.current.closest('.modal-body');
+      if (modalBody) {
+        modalBody.scrollTop = modalBody.scrollHeight;
+      }
+    }
+  }, [error]);
 
   const [items, setItems] = useState<GroceryItemDraft[]>(() =>
     recipe.ingredients.map((ing) => {
@@ -878,6 +893,7 @@ function AddToGroceryModal({
               />
             </div>
           )}
+          {error && <div className="error-msg" ref={errorRef} style={{ marginTop: '0.75rem' }}>{error}</div>}
         </div>
         <div className="modal-footer">
           <button
