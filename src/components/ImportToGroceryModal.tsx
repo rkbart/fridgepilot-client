@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UNITS, type Recipe, type PantryItem } from '../services/api';
 import { useGroceryLists } from '../contexts/GroceryListContext';
-import { checkRecipeAvailability } from '../utils/pantryMatcher';
 
 interface ImportToGroceryModalProps {
   recipe: Recipe;
@@ -14,13 +13,11 @@ interface ItemDraft {
   name: string;
   quantity: number | undefined;
   unit: string | undefined;
-  checked: boolean;
 }
 
 export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onImported }: ImportToGroceryModalProps) {
   const { lists, createList, addItem } = useGroceryLists();
   const ingredients = recipe.ingredients || [];
-  const availability = checkRecipeAvailability(ingredients, pantryItems);
 
   const [mode, setMode] = useState<'existing' | 'new'>(lists.length === 0 ? 'new' : 'existing');
   const [selectedListId, setSelectedListId] = useState<number | null>(lists.length > 0 ? lists[0].id : null);
@@ -29,16 +26,11 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
   const [error, setError] = useState('');
 
   const [items, setItems] = useState<ItemDraft[]>(() =>
-    ingredients.map((ing, idx) => {
-      const avail = availability.availability[idx];
-      const inPantry = avail?.status === 'available';
-      return {
-        name: ing.name,
-        quantity: ing.quantity,
-        unit: ing.unit,
-        checked: inPantry,
-      };
-    })
+    ingredients.map((ing) => ({
+      name: ing.name,
+      quantity: ing.quantity,
+      unit: ing.unit,
+    }))
   );
 
   useEffect(() => {
@@ -48,12 +40,6 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
-
-  const toggleItem = (index: number) => {
-    setItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, checked: !item.checked } : item))
-    );
-  };
 
   const updateItem = (index: number, field: 'quantity' | 'unit', value: string) => {
     setItems((prev) =>
@@ -92,13 +78,15 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
         listId = selectedListId;
       }
 
-      const toAdd = items.filter((item) => item.checked);
-      for (const item of toAdd) {
+      for (const item of items) {
+        const pantryMatch = pantryItems.find(
+          (p) => p.name.toLowerCase() === item.name.toLowerCase() && p.quantity === item.quantity && p.unit === item.unit
+        );
         await addItem(listId, {
           name: item.name,
           quantity: item.quantity,
           unit: item.unit,
-          status: 'checked',
+          status: pantryMatch ? 'checked' : undefined,
         });
       }
 
@@ -125,18 +113,12 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
         </div>
         <div className="modal-body">
           <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
-            Add ingredients from "{recipe.name}":
+            Add {items.length} ingredient{items.length !== 1 ? 's' : ''} from "{recipe.name}":
           </p>
 
           <div className="item-list" style={{ marginBottom: '1rem' }}>
-            {items.map((item, idx) => (
-              <div key={item.name} className={`grocery-add-row ${item.checked ? 'in-pantry' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={item.checked}
-                  onChange={() => toggleItem(idx)}
-                  className="grocery-add-checkbox"
-                />
+            {items.map((item) => (
+              <div key={item.name} className="grocery-add-row">
                 <span className="item-name">{item.name}</span>
                 <div className="grocery-add-fields">
                   <input
@@ -146,12 +128,18 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
                     min="0"
                     step="any"
                     value={item.quantity ?? ''}
-                    onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                    onChange={(e) => {
+                      const idx = items.indexOf(item);
+                      updateItem(idx, 'quantity', e.target.value);
+                    }}
                   />
                   <select
                     className="form-input form-input-sm"
                     value={item.unit ?? ''}
-                    onChange={(e) => updateItem(idx, 'unit', e.target.value)}
+                    onChange={(e) => {
+                      const idx = items.indexOf(item);
+                      updateItem(idx, 'unit', e.target.value);
+                    }}
                   >
                     <option value="">Unit</option>
                     {UNITS.map((u) => (

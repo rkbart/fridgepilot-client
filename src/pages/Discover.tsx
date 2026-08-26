@@ -284,7 +284,7 @@ export default function Discover() {
   };
 
   const handleAddToGrocery = async (
-    items: { name: string; quantity?: number; unit?: string; checked?: boolean }[],
+    items: { name: string; quantity?: number; unit?: string }[],
     options: { listId?: number; newListName?: string }
   ) => {
     if (!addingToGrocery) return;
@@ -301,20 +301,21 @@ export default function Discover() {
       }
 
       if (listId) {
-        const toAdd = items.filter((item) => item.checked !== false);
-        for (const item of toAdd) {
+        for (const item of items) {
+          const pantryMatch = pantryItems.find(
+            (p) => p.name.toLowerCase() === item.name.toLowerCase() && p.quantity === item.quantity && p.unit === item.unit
+          );
           await addItem(listId, {
             name: item.name,
             quantity: item.quantity,
             unit: item.unit,
-            status: item.checked ? 'checked' : undefined,
+            status: pantryMatch ? 'checked' : undefined,
           });
         }
       }
 
       setAddingToGrocery(null);
-      const addedCount = items.filter((item) => item.checked !== false).length;
-      showToast(`${addedCount} ingredient${addedCount !== 1 ? 's' : ''} added to ${listName}`);
+      showToast(`${items.length} ingredient${items.length !== 1 ? 's' : ''} added to ${listName}`);
     } catch {
       showToast('Failed to add ingredients', 'error');
     }
@@ -754,7 +755,6 @@ interface GroceryItemDraft {
   name: string;
   quantity: number | undefined;
   unit: string | undefined;
-  checked: boolean;
 }
 
 function AddToGroceryModal({
@@ -775,15 +775,9 @@ function AddToGroceryModal({
   const [items, setItems] = useState<GroceryItemDraft[]>(() =>
     recipe.ingredients.map((ing) => {
       const parsed = ing.measure ? parseMeasure(ing.measure) : { quantity: undefined, unit: undefined };
-      return { name: ing.name, quantity: parsed.quantity, unit: parsed.unit, checked: ing.available };
+      return { name: ing.name, quantity: parsed.quantity, unit: parsed.unit };
     })
   );
-
-  const toggleItem = (index: number) => {
-    setItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, checked: !item.checked } : item))
-    );
-  };
 
   const updateItem = (index: number, field: 'quantity' | 'unit', value: string) => {
     setItems((prev) =>
@@ -807,17 +801,11 @@ function AddToGroceryModal({
         </div>
         <div className="modal-body">
           <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
-            Add ingredients from "{recipe.name}":
+            Add {items.length} ingredient{items.length !== 1 ? 's' : ''} from "{recipe.name}":
           </p>
           <div className="item-list" style={{ marginBottom: '1rem' }}>
             {items.map((item, idx) => (
-              <div key={item.name} className={`grocery-add-row ${item.checked ? 'in-pantry' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={item.checked}
-                  onChange={() => toggleItem(idx)}
-                  className="grocery-add-checkbox"
-                />
+              <div key={item.name} className="grocery-add-row">
                 <span className="item-name">{item.name}</span>
                 <div className="grocery-add-fields">
                   <input
