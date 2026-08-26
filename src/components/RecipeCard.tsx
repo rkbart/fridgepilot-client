@@ -135,7 +135,7 @@ export default function RecipeCard({
                   onAddToGroceryList(recipe);
                 }}
               >
-                Add to List
+                Add to Grocery List
               </button>
               <button
                 type="button"

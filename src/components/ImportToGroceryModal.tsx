@@ -96,44 +96,46 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
           </button>
         </div>
         <div className="modal-body">
-          <div className="form-group">
-            <label>Select grocery list</label>
-            <select
-              className="form-input"
-              value={selectedListId}
-              onChange={(e) => setSelectedListId(Number(e.target.value) || 'new')}
-            >
-              <option value="new">Create new list</option>
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name} ({list.items.length} items)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedListId === 'new' && (
+          <div className="import-modal-fields">
             <div className="form-group">
-              <label>New list name</label>
-              <input
+              <label>Select grocery list</label>
+              <select
                 className="form-input"
-                placeholder="e.g. Weekly groceries"
-                value={newListName}
-                onChange={(e) => setNewListName(e.target.value)}
-                autoFocus
-              />
+                value={selectedListId}
+                onChange={(e) => setSelectedListId(Number(e.target.value) || 'new')}
+              >
+                <option value="new">Create new list</option>
+                {lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name} ({list.items.length} items)
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
 
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={addAll}
-                onChange={(e) => setAddAll(e.target.checked)}
-              />
-              <span>Add all ingredients (ignore pantry quantities)</span>
-            </label>
+            {selectedListId === 'new' && (
+              <div className="form-group">
+                <label>New list name</label>
+                <input
+                  className="form-input"
+                  placeholder="e.g. Weekly groceries"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={addAll}
+                  onChange={(e) => setAddAll(e.target.checked)}
+                />
+                <span>Add all ingredients (ignore pantry quantities)</span>
+              </label>
+            </div>
           </div>
 
           <div className="import-preview">
