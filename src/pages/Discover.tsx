@@ -303,7 +303,7 @@ export default function Discover() {
       if (listId) {
         for (const item of items) {
           const pantryMatch = pantryItems.find(
-            (p) => p.name.toLowerCase() === item.name.toLowerCase() && p.quantity === item.quantity && p.unit === item.unit
+            (p) => p.name.toLowerCase() === item.name.toLowerCase()
           );
           await addItem(listId, {
             name: item.name,
