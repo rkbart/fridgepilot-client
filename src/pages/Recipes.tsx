@@ -51,18 +51,26 @@ export default function Recipes() {
   }, [searchInput, setPage, setQuery]);
 
   // Handle navigation from Dashboard "Cook tonight?" links: pre-fill the search
-  // and auto-expand the target recipe card without showing the query in the search bar.
+  // and auto-expand the target recipe card.
   useEffect(() => {
     const qParam = searchParams.get('q');
     if (!qParam) return;
 
     setSearchParams({}, { replace: true });
+    setSearchInput(qParam);
     setQuery(qParam);
     setPage(1);
 
     const expandId = (location.state as { expandRecipeId?: number } | null)?.expandRecipeId;
     if (expandId) setExpandedId(expandId);
   }, [searchParams, setSearchParams, setQuery, setPage, location.state]);
+
+  // Scroll to the expanded recipe card once loading finishes
+  useEffect(() => {
+    if (loading || !expandedId) return;
+    const el = document.getElementById(`recipe-${expandedId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [expandedId, loading]);
 
   // Leaving the page clears the search so shared context stays unfiltered
   useEffect(() => {
