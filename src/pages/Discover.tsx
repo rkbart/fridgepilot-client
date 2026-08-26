@@ -331,8 +331,9 @@ export default function Discover() {
       await recipesApi.importFromMealDb(recipe.id);
       setSavedIds((prev) => new Set(prev).add(recipe.id));
       showToast(`"${recipe.name}" saved to your recipes`);
-    } catch {
-      showToast('Failed to save recipe', 'error');
+    } catch (err: unknown) {
+      const message = (err as { error?: { message?: string } })?.error?.message || 'Failed to save recipe';
+      showToast(message, 'error');
     } finally {
       setSavingId(null);
     }

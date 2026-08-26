@@ -125,6 +125,7 @@ export interface RecipeIngredient {
 export interface Recipe {
   id: number;
   name: string;
+  source?: string;
   image_url?: string;
   ingredients: RecipeIngredient[];
   instructions: string[];
