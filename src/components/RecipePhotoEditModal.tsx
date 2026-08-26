@@ -76,6 +76,14 @@ export default function RecipePhotoEditModal({ recipe, onClose, onSaved }: Recip
               <img src={imagePreview} alt="Preview" />
               <button type="button" className="btn btn-secondary btn-sm" onClick={clearImage}>Remove</button>
             </div>
+          ) : imageUrl ? (
+            <div className="recipe-image-preview">
+              <img
+                src={imageUrl}
+                alt="Preview"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
           ) : recipe.image_url ? (
             <div className="recipe-image-preview">
               <img src={recipe.image_url} alt={recipe.name} />
