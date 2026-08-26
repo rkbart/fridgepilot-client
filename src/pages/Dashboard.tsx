@@ -82,7 +82,7 @@ export default function Dashboard() {
   ];
 
   const openRecipe = (recipe: Recipe) => {
-    navigate(`/recipes?q=${encodeURIComponent(recipe.name)}`);
+    navigate(`/recipes?q=${encodeURIComponent(recipe.name)}`, { state: { expandRecipeId: recipe.id } });
   };
 
   return (
