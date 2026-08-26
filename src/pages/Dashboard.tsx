@@ -167,7 +167,6 @@ export default function Dashboard() {
           <Link to="/pantry" className="btn btn-secondary">🥫 Update pantry</Link>
           <Link to="/discover" className="btn btn-secondary">🔍 Discover recipes</Link>
           <Link to="/grocery-lists" className="btn btn-secondary">🛒 Start shopping list</Link>
-          <Link to="/ai-suggestions" className="btn btn-secondary">✨ Ask AI helper</Link>
         </div>
       </section>
 

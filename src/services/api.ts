@@ -192,14 +192,14 @@ export interface GroceryItem {
   quantity?: number;
   unit?: string;
   status: 'pending' | 'confirmed' | 'checked';
-  source: 'manual' | 'ai_suggested';
+  source: 'manual';
   recipe_id?: number;
 }
 
 export interface GroceryList {
   id: number;
   name: string;
-  source: 'manual' | 'ai_generated';
+  source: 'manual';
   items: GroceryItem[];
   created_at: string;
   updated_at: string;
@@ -222,35 +222,6 @@ export const groceryLists = {
 };
 
 export { getToken, isAuthenticated };
-
-// AI
-export interface AiSuggestion {
-  name: string;
-  ingredients: string[];
-  match_score: number;
-  missing_ingredients: string[];
-}
-
-export const ai = {
-  suggestRecipes: () => request<{ suggestions: AiSuggestion[]; message?: string }>('/api/v1/ai/suggest_recipes', { method: 'POST' }),
-  generateGroceryList: (recipeId: number) =>
-    request<GroceryList>(`/api/v1/ai/generate_grocery_list`, { method: 'POST', body: JSON.stringify({ recipe_id: recipeId }) }),
-};
-
-// Settings
-export interface UserSettings {
-  data: {
-    ai_api_key: string | null;
-    ai_api_endpoint: string | null;
-    has_api_key: boolean;
-  };
-}
-
-export const settings = {
-  get: () => request<UserSettings>('/api/v1/settings'),
-  update: (data: { ai_api_key?: string; ai_api_endpoint?: string }) =>
-    request<{ data: { message: string } }>('/api/v1/settings', { method: 'PUT', body: JSON.stringify({ settings: data }) }),
-};
 
 // Recipe Discovery
 export interface DiscoverIngredient {

@@ -7,9 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Recipes from './pages/Recipes';
 import Pantry from './pages/Pantry';
 import GroceryListPage from './pages/GroceryList';
-import AISuggestions from './pages/AISuggestions';
 import Discover from './pages/Discover';
-import SettingsPage from './pages/Settings';
 import { isAuthenticated, logout, getCurrentUser } from './services/api';
 import { PantryProvider } from './contexts/PantryContext';
 import { RecipesProvider } from './contexts/RecipesContext';
@@ -32,7 +30,7 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
     label: 'Discover',
     items: [
       { path: '/discover', label: 'Discover', icon: '🔍' },
-      { path: '/ai-suggestions', label: 'AI Helper', icon: '✨' },
+
     ],
   },
   {
@@ -43,10 +41,7 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
       { path: '/grocery-lists', label: 'Groceries', icon: '🛒' },
     ],
   },
-  {
-    label: 'Account',
-    items: [{ path: '/settings', label: 'Settings', icon: '⚙️' }],
-  },
+
 ];
 
 const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
@@ -166,8 +161,7 @@ function AppRoutes() {
                   <Route path="/pantry" element={<Pantry />} />
                   <Route path="/discover" element={<Discover />} />
                   <Route path="/grocery-lists" element={<GroceryListPage />} />
-                  <Route path="/ai-suggestions" element={<AISuggestions />} />
-                  <Route path="/settings" element={<SettingsPage />} />
+
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
