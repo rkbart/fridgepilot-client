@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { UNITS, type Recipe, type PantryItem } from '../services/api';
 import { useGroceryLists } from '../contexts/GroceryListContext';
 
@@ -24,6 +24,16 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
   const [newListName, setNewListName] = useState(`${recipe.name} ingredients`);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      const modalBody = errorRef.current.closest('.modal-body');
+      if (modalBody) {
+        modalBody.scrollTop = modalBody.scrollHeight;
+      }
+    }
+  }, [error]);
 
   const [items, setItems] = useState<ItemDraft[]>(() =>
     ingredients.map((ing) => ({
@@ -200,7 +210,7 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
             </div>
           )}
 
-          {error && <div className="error-msg" style={{ marginTop: '0.75rem' }}>{error}</div>}
+          {error && <div className="error-msg" ref={errorRef} style={{ marginTop: '0.75rem' }}>{error}</div>}
         </div>
         <div className="modal-footer">
           <button
