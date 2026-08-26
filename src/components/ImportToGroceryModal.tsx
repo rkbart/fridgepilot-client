@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { Recipe, PantryItem } from '../services/api';
+import { UNITS, type Recipe, type PantryItem } from '../services/api';
 import { useGroceryLists } from '../contexts/GroceryListContext';
-import { checkRecipeAvailability, calculateImportQuantity } from '../utils/pantryMatcher';
+import { checkRecipeAvailability } from '../utils/pantryMatcher';
 
 interface ImportToGroceryModalProps {
   recipe: Recipe;
@@ -10,13 +10,32 @@ interface ImportToGroceryModalProps {
   onImported: (listId: number) => void;
 }
 
+interface ItemDraft {
+  name: string;
+  quantity: number | undefined;
+  unit: string | undefined;
+}
+
 export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onImported }: ImportToGroceryModalProps) {
   const { lists, createList, addItem } = useGroceryLists();
-  const [selectedListId, setSelectedListId] = useState<number | 'new'>('new');
+  const ingredients = recipe.ingredients || [];
+  const availability = checkRecipeAvailability(ingredients, pantryItems);
+
+  const [mode, setMode] = useState<'existing' | 'new'>(lists.length === 0 ? 'new' : 'existing');
+  const [selectedListId, setSelectedListId] = useState<number | null>(lists.length > 0 ? lists[0].id : null);
   const [newListName, setNewListName] = useState(`${recipe.name} ingredients`);
-  const [addAll, setAddAll] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+
+  const [items, setItems] = useState<ItemDraft[]>(() =>
+    ingredients.map((ing, idx) => {
+      const avail = availability.availability[idx];
+      if (avail?.status === 'available') {
+        return { name: ing.name, quantity: undefined, unit: undefined };
+      }
+      return { name: ing.name, quantity: ing.quantity, unit: ing.unit };
+    })
+  );
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -26,23 +45,18 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const ingredients = recipe.ingredients || [];
-  const availability = checkRecipeAvailability(ingredients, pantryItems);
-
-  // Calculate what will be imported
-  const importPreview = ingredients.map((ing, idx) => {
-    const avail = availability.availability[idx];
-    const importQty = calculateImportQuantity(ing, avail?.pantryItem, addAll);
-    return {
-      ingredient: ing,
-      availability: avail,
-      quantity: importQty.quantity,
-      status: importQty.status,
-    };
-  });
-
-  const missingCount = importPreview.filter((p) => p.status === 'pending').length;
-  const checkedCount = importPreview.filter((p) => p.status === 'checked').length;
+  const updateItem = (index: number, field: 'quantity' | 'unit', value: string) => {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [field]: field === 'quantity' ? (value === '' ? undefined : Number(value) || undefined) : value || undefined,
+            }
+          : item
+      )
+    );
+  };
 
   const handleImport = async () => {
     setImporting(true);
@@ -51,7 +65,7 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
     try {
       let listId: number;
 
-      if (selectedListId === 'new') {
+      if (mode === 'new') {
         if (!newListName.trim()) {
           setError('Please enter a list name');
           setImporting(false);
@@ -60,15 +74,20 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
         const newList = await createList({ name: newListName.trim() });
         listId = newList.id;
       } else {
+        if (!selectedListId) {
+          setError('Please select a list');
+          setImporting(false);
+          return;
+        }
         listId = selectedListId;
       }
 
-      // Add items to the list
-      for (const item of importPreview) {
+      const toAdd = items.filter((item) => item.quantity != null || item.unit);
+      for (const item of toAdd) {
         await addItem(listId, {
-          name: item.ingredient.name,
+          name: item.name,
           quantity: item.quantity,
-          unit: item.ingredient.unit,
+          unit: item.unit,
         });
       }
 
@@ -90,92 +109,103 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>Import to Grocery List</h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-            ×
-          </button>
+          <h2>Add to Grocery List</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
-          <div className="import-modal-fields">
-            <div className="form-group">
-              <label>Select grocery list</label>
-              <select
-                className="form-input"
-                value={selectedListId}
-                onChange={(e) => setSelectedListId(Number(e.target.value) || 'new')}
-              >
-                <option value="new">Create new list</option>
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name} ({list.items.length} items)
-                  </option>
-                ))}
-              </select>
-            </div>
+          <p className="confirm-delete-text" style={{ marginBottom: '1rem' }}>
+            Add {items.length} ingredient{items.length !== 1 ? 's' : ''} from "{recipe.name}":
+          </p>
 
-            {selectedListId === 'new' && (
-              <div className="form-group">
-                <label>New list name</label>
-                <input
-                  className="form-input"
-                  placeholder="e.g. Weekly groceries"
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                  autoFocus
-                />
+          <div className="item-list" style={{ marginBottom: '1rem' }}>
+            {items.map((item, idx) => (
+              <div key={item.name} className="grocery-add-row">
+                <span className="item-name">{item.name}</span>
+                <div className="grocery-add-fields">
+                  <input
+                    type="number"
+                    className="form-input form-input-sm"
+                    placeholder="Qty"
+                    min="0"
+                    step="any"
+                    value={item.quantity ?? ''}
+                    onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                  />
+                  <select
+                    className="form-input form-input-sm"
+                    value={item.unit ?? ''}
+                    onChange={(e) => updateItem(idx, 'unit', e.target.value)}
+                  >
+                    <option value="">Unit</option>
+                    {UNITS.map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            )}
-
-            <div className="form-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={addAll}
-                  onChange={(e) => setAddAll(e.target.checked)}
-                />
-                <span>Add all ingredients (ignore pantry quantities)</span>
-              </label>
-            </div>
+            ))}
           </div>
 
-          <div className="import-preview">
-            <div className="import-preview-header">
-              <span>Preview ({ingredients.length} ingredients)</span>
-              {checkedCount > 0 && (
-                <span className="import-preview-checked">{checkedCount} already in pantry</span>
+          <div className="detail-tabs" style={{ marginBottom: '0.75rem' }}>
+            <button
+              type="button"
+              className={mode === 'existing' ? 'active' : ''}
+              onClick={() => setMode('existing')}
+            >
+              Existing list
+            </button>
+            <button
+              type="button"
+              className={mode === 'new' ? 'active' : ''}
+              onClick={() => setMode('new')}
+            >
+              New list
+            </button>
+          </div>
+
+          {mode === 'existing' ? (
+            <div className="form-group">
+              <label>Grocery List</label>
+              {lists.length === 0 ? (
+                <p className="empty-inline">No grocery lists found.</p>
+              ) : (
+                <select
+                  className="form-input"
+                  value={selectedListId ?? ''}
+                  onChange={(e) => setSelectedListId(Number(e.target.value))}
+                >
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>{list.name}</option>
+                  ))}
+                </select>
               )}
             </div>
-            <div className="import-preview-list">
-              {importPreview.map((item, idx) => (
-                <div key={idx} className={`import-preview-item ${item.status}`}>
-                  <span className="import-preview-status">
-                    {item.status === 'checked' ? '✓' : '+'}
-                  </span>
-                  <span className="import-preview-name">{item.ingredient.name}</span>
-                  {item.quantity != null && (
-                    <span className="import-preview-qty">
-                      {item.quantity}{item.ingredient.unit ? ` ${item.ingredient.unit}` : ''}
-                    </span>
-                  )}
-                </div>
-              ))}
+          ) : (
+            <div className="form-group">
+              <label>List name</label>
+              <input
+                className="form-input"
+                type="text"
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+                placeholder="e.g. Weekly groceries"
+                autoFocus
+              />
             </div>
-          </div>
+          )}
 
-          {error && <div className="error-msg">{error}</div>}
+          {error && <div className="error-msg" style={{ marginTop: '0.75rem' }}>{error}</div>}
         </div>
         <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={importing}>
-            Cancel
-          </button>
           <button
             type="button"
             className="btn btn-primary"
+            disabled={importing || (mode === 'existing' && !selectedListId)}
             onClick={handleImport}
-            disabled={importing || ingredients.length === 0}
           >
-            {importing ? 'Importing...' : `Import ${missingCount} missing`}
+            {importing ? 'Importing...' : mode === 'new' ? 'Create & Add' : 'Add to List'}
           </button>
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={importing}>Cancel</button>
         </div>
       </div>
     </div>
