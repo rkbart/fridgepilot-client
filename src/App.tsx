@@ -13,6 +13,7 @@ import { PantryProvider } from './contexts/PantryContext';
 import { RecipesProvider } from './contexts/RecipesContext';
 import { GroceryListProvider } from './contexts/GroceryListContext';
 import { ToastProvider } from './contexts/ToastContext';
+import AutoTickGroceryItems from './components/AutoTickGroceryItems';
 import './App.css';
 
 interface NavItem {
@@ -153,6 +154,7 @@ function AppRoutes() {
         <RecipesProvider>
           <GroceryListProvider>
             <div className="app-layout">
+              <AutoTickGroceryItems />
               <Sidebar />
               <main className="main-content">
                 <Routes>
