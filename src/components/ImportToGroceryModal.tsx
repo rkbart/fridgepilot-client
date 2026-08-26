@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { UNITS, type Recipe, type PantryItem } from '../services/api';
+import { UNITS, normalizeUnit, type Recipe, type PantryItem } from '../services/api';
 import { useGroceryLists } from '../contexts/GroceryListContext';
 
 interface ImportToGroceryModalProps {
@@ -39,7 +39,7 @@ export default function ImportToGroceryModal({ recipe, pantryItems, onClose, onI
     ingredients.map((ing) => ({
       name: ing.name,
       quantity: ing.quantity,
-      unit: ing.unit,
+      unit: normalizeUnit(ing.unit),
     }))
   );
 
