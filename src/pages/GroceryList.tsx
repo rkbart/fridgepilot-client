@@ -8,8 +8,10 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { SkeletonList } from '../components/Skeleton';
 import { useFocusSearch } from '../hooks/useFocusSearch';
 
+type Tab = 'active' | 'archived';
+
 export default function GroceryListPage() {
-  const { lists, loading, error: contextError, createList, updateList, deleteList, addItem, updateItem, deleteItem } = useGroceryLists();
+  const { lists, archivedLists, loading, error: contextError, createList, updateList, deleteList, archiveList, unarchiveList, addItem, updateItem, deleteItem } = useGroceryLists();
   const { showToast } = useToast();
   const searchRef = useRef<HTMLInputElement | null>(null);
   useFocusSearch(searchRef);
@@ -27,6 +29,7 @@ export default function GroceryListPage() {
   const [newListName, setNewListName] = useState('');
   const [createError, setCreateError] = useState('');
   const createFormRef = useRef<HTMLDivElement | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('active');
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -36,10 +39,12 @@ export default function GroceryListPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  const sourceLists = activeTab === 'active' ? lists : archivedLists;
+
   const filtered = useMemo(() => {
-    const base = !debouncedQuery ? lists : lists.filter((l) => l.name.toLowerCase().includes(debouncedQuery));
+    const base = !debouncedQuery ? sourceLists : sourceLists.filter((l) => l.name.toLowerCase().includes(debouncedQuery));
     return [...base].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  }, [lists, debouncedQuery]);
+  }, [sourceLists, debouncedQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -63,7 +68,7 @@ export default function GroceryListPage() {
 
   const handleRenameList = async (list: { id: number }, name: string) => {
     try {
-      await updateList(list.id, { name });
+      await updateList(list.id, name);
       setRenaming(null);
       showToast('List renamed');
     } catch (err: unknown) {
@@ -80,6 +85,26 @@ export default function GroceryListPage() {
       showToast('List deleted');
     } catch {
       showToast('Failed to delete list', 'error');
+    }
+  };
+
+  const handleArchiveList = async (id: number) => {
+    try {
+      await archiveList(id);
+      if (expandedId === id) setExpandedId(null);
+      showToast('List archived');
+    } catch {
+      showToast('Failed to archive list', 'error');
+    }
+  };
+
+  const handleUnarchiveList = async (id: number) => {
+    try {
+      await unarchiveList(id);
+      if (expandedId === id) setExpandedId(null);
+      showToast('List restored');
+    } catch {
+      showToast('Failed to restore list', 'error');
     }
   };
 
@@ -127,13 +152,30 @@ export default function GroceryListPage() {
       <div className="page-header">
         <div className="page-header-title">
           <h1>Grocery Lists</h1>
-          <span className="subtitle">{lists.length} list{lists.length !== 1 ? 's' : ''}</span>
+          <span className="subtitle">{lists.length} active · {archivedLists.length} archived</span>
         </div>
         <div className="page-header-actions">
           <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
             <span className="btn-icon">+</span> New list
           </button>
         </div>
+      </div>
+
+      <div className="tab-bar">
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('active'); setPage(1); setExpandedId(null); }}
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'archived' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('archived'); setPage(1); setExpandedId(null); }}
+        >
+          Archived
+        </button>
       </div>
 
       <div className="recipes-toolbar">
@@ -154,7 +196,7 @@ export default function GroceryListPage() {
         <span className="search-hint" aria-hidden="true">Press / to search</span>
       </div>
 
-      {showCreate && (
+      {showCreate && activeTab === 'active' && (
         <div className="card" style={{ marginBottom: '1rem' }} ref={createFormRef}>
           <form onSubmit={handleCreateList} className="inline-form">
             <div className="form-group inline-form-field-lg">
@@ -179,7 +221,9 @@ export default function GroceryListPage() {
               <p>
                 {debouncedQuery
                   ? `No lists match "${debouncedQuery}".`
-                  : 'No grocery lists yet. Click "New list" to add your first one.'}
+                  : activeTab === 'active'
+                    ? 'No grocery lists yet. Click "New list" to add your first one.'
+                    : 'No archived lists.'}
               </p>
             </div>
           )}
@@ -188,6 +232,7 @@ export default function GroceryListPage() {
             {paginated.map((list) => {
               const itemCount = list.items.length;
               const pendingCount = list.items.filter((i) => i.status !== 'checked').length;
+              const isArchived = list.status === 'archived';
 
               return (
                 <div className="card" key={list.id}>
@@ -195,39 +240,73 @@ export default function GroceryListPage() {
                     <div className="recipe-header-info">
                       <div className="recipe-title-row">
                         <span className="recipe-name">{list.name}</span>
-                        <button
-                          type="button"
-                          className="detail-icon-btn"
-                          aria-label="Rename list"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenaming({ id: list.id, name: list.name });
-                          }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <path d="M11.3 2.3a1 1 0 0 1 1.4 0l1 1a1 1 0 0 1 0 1.4l-7 7-2.7.6.6-2.7 7-7Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
+                        {!isArchived && (
+                          <button
+                            type="button"
+                            className="detail-icon-btn"
+                            aria-label="Rename list"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRenaming({ id: list.id, name: list.name });
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                              <path d="M11.3 2.3a1 1 0 0 1 1.4 0l1 1a1 1 0 0 1 0 1.4l-7 7-2.7.6.6-2.7 7-7Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                       <div className="recipe-meta">
-                        {itemCount} item{itemCount !== 1 ? 's' : ''} · {pendingCount} pending
+                        {itemCount} item{itemCount !== 1 ? 's' : ''} · {isArchived ? 'archived' : `${pendingCount} pending`}
                       </div>
                     </div>
                     <div className="recipe-header-actions">
                       {expandedId === list.id && (
-                        <button
-                          type="button"
-                          className="detail-icon-btn detail-icon-danger"
-                          aria-label="Delete list"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmingDelete({ id: list.id, name: list.name });
-                          }}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                            <path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
+                        <>
+                          {isArchived ? (
+                            <button
+                              type="button"
+                              className="detail-icon-btn"
+                              aria-label="Restore list"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUnarchiveList(list.id);
+                              }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 8a6 6 0 1 1 1.76 4.24" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M2 12V8h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="detail-icon-btn"
+                              aria-label="Archive list"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchiveList(list.id);
+                              }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 3h12M5.33 3V2a.67.67 0 0 1 .67-.67h4a.67.67 0 0 1 .67.67v1M6.67 7.33v4M9.33 7.33v4M3 11.33h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="detail-icon-btn detail-icon-danger"
+                            aria-label="Delete list"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmingDelete({ id: list.id, name: list.name });
+                            }}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        </>
                       )}
                       <button
                         type="button"
@@ -259,20 +338,22 @@ export default function GroceryListPage() {
                               onToggle={() => toggleOpen(`item-${list.id}-${item.id}`)}
                               actions={
                                 <>
-                                  <button
-                                    className="action-edit-btn"
-                                    onClick={() =>
-                                      setEditingItem({
-                                        listId: list.id,
-                                        itemId: item.id,
-                                        name: item.name,
-                                        quantity: item.quantity,
-                                        unit: item.unit,
-                                      })
-                                    }
-                                  >
-                                    Edit
-                                  </button>
+                                  {!isArchived && (
+                                    <button
+                                      className="action-edit-btn"
+                                      onClick={() =>
+                                        setEditingItem({
+                                          listId: list.id,
+                                          itemId: item.id,
+                                          name: item.name,
+                                          quantity: item.quantity,
+                                          unit: item.unit,
+                                        })
+                                      }
+                                    >
+                                      Edit
+                                    </button>
+                                  )}
                                   <button
                                     className="action-delete-btn"
                                     onClick={() => handleDeleteItem(list.id, item.id, item.name)}
@@ -286,7 +367,8 @@ export default function GroceryListPage() {
                                 <input
                                   type="checkbox"
                                   checked={item.status === 'checked'}
-                                  onChange={() => handleToggleItem(list.id, item.id, item.status !== 'checked')}
+                                  onChange={() => !isArchived && handleToggleItem(list.id, item.id, item.status !== 'checked')}
+                                  disabled={isArchived}
                                 />
                                 <span className="item-text">{item.name}</span>
                               </label>
@@ -298,7 +380,7 @@ export default function GroceryListPage() {
                         </div>
                       )}
 
-                      {expandedId === list.id && (
+                      {expandedId === list.id && !isArchived && (
                         <div style={{ marginTop: '0.5rem' }}>
                           <button className="add-row-btn" onClick={() => setAddingToList(list.id)}>
                             <span className="add-row-icon">+</span> Add ingredient
@@ -341,7 +423,7 @@ export default function GroceryListPage() {
       {confirmingDelete && (
         <ConfirmDeleteModal
           title="Delete list?"
-          message={`“${confirmingDelete.name}” and all its items will be permanently removed. This can’t be undone.`}
+          message={`"${confirmingDelete.name}" and all its items will be permanently removed. This can't be undone.`}
           onConfirm={() => handleDeleteList(confirmingDelete.id)}
           onCancel={() => setConfirmingDelete(null)}
         />
